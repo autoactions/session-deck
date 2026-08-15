@@ -1,0 +1,7 @@
+name = "debug-session-control"
+main = "src/index.ts"
+compatibility_date = "2026-08-15"
+
+[vars]
+GITHUB_REPO = "autoactions/debug-session"
+GITHUB_REF = "main"
