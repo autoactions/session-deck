@@ -1,5 +1,33 @@
+# Dependencies
 node_modules/
+
+# Build
 dist/
-.wrangler/
-.dev.vars
 *.tsbuildinfo
+
+# Wrangler / Miniflare
+.wrangler/
+.mf/
+
+# Secrets — keep the committed examples
+.dev.vars
+.env
+.env.*
+!.env.example
+!.dev.vars.example
+
+# Tests
+coverage/
+*.lcov
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+*~
