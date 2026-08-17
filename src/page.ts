@@ -11,7 +11,7 @@ const MARK = `<svg class="mark" viewBox="0 0 32 32" aria-hidden="true" focusable
 
 export function renderPage(): string {
   return `<!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -41,10 +41,11 @@ export function renderPage(): string {
       --mono: "IBM Plex Mono", ui-monospace, monospace;
     }
     * { box-sizing: border-box; }
-    html, body { height: 100%; }
+    html, body { height: 100%; overflow: hidden; }
     body {
       margin: 0;
-      min-height: 100vh;
+      height: 100dvh;
+      min-height: 100dvh;
       font: 15px/1.45 var(--body);
       letter-spacing: -0.011em;
       background: var(--bg-2);
@@ -96,6 +97,8 @@ export function renderPage(): string {
     }
     .btn-primary { background: var(--accent); color: var(--accent-fg); }
     .btn-primary:hover:not(:disabled) { background: var(--accent-hover); color: var(--accent-fg); }
+    .btn-danger { background: var(--failed); color: #fff; }
+    .btn-danger:hover:not(:disabled) { background: #c24b3d; color: #fff; }
     .btn-ghost {
       border: 1px solid var(--line-strong);
       color: var(--fg);
@@ -138,11 +141,13 @@ export function renderPage(): string {
     #gate {
       position: relative;
       z-index: 1;
-      min-height: 100vh;
+      height: 100dvh;
+      min-height: 100dvh;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 48px 24px 96px;
+      overflow: hidden;
     }
     .gate-stack {
       width: min(440px, 100%);
@@ -204,9 +209,11 @@ export function renderPage(): string {
     #app {
       position: relative;
       z-index: 1;
-      min-height: 100vh;
+      height: 100dvh;
+      min-height: 100dvh;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
     }
     header {
       height: 60px;
@@ -215,6 +222,7 @@ export function renderPage(): string {
       align-items: center;
       gap: 28px;
       border-bottom: 1px solid var(--line);
+      flex: none;
     }
     .brand {
       display: flex;
@@ -250,37 +258,59 @@ export function renderPage(): string {
       color: var(--fg);
       border-bottom-color: var(--fg);
     }
-    .stage { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    .stage { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
     .board {
       flex: 1;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      min-height: calc(100vh - 60px - 36px);
-    }
-    .machine {
       display: flex;
       flex-direction: column;
-      padding: 36px 40px 28px;
-      min-height: 100%;
+      min-height: 0;
+      overflow: hidden;
     }
-    .machine + .machine { border-left: 1px solid var(--line); }
+    .machine {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      width: min(640px, 100%);
+      padding: 36px 40px 28px;
+      min-height: 0;
+      overflow: hidden;
+    }
     .host-row {
       display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
+      align-items: center;
       gap: 16px;
     }
-    .os { color: var(--faint); margin: 0 0 8px; }
-    .host {
-      font-family: var(--mono);
+    .seg {
+      display: inline-flex;
+      border: 1px solid var(--line-strong);
+      flex: none;
+    }
+    .seg-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      padding: 0 14px;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-family: var(--body);
       font-size: 13px;
-      color: var(--fg);
+      font-weight: 500;
+      letter-spacing: -0.011em;
+      cursor: pointer;
+      transition: background 150ms ease, color 150ms ease;
+    }
+    .seg-btn + .seg-btn { border-left: 1px solid var(--line-strong); }
+    .seg-btn:hover:not([aria-checked="true"]) { color: var(--fg); }
+    .seg-btn[aria-checked="true"] {
+      background: var(--fg);
+      color: var(--accent-fg);
     }
     .led {
       position: relative;
       width: 6px;
       height: 6px;
-      margin-top: 6px;
       border-radius: 6px;
       background: var(--muted);
       flex: none;
@@ -299,10 +329,16 @@ export function renderPage(): string {
       0% { transform: scale(0.7); opacity: 0.55; }
       100% { transform: scale(2.1); opacity: 0; }
     }
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin: 28px 0 0;
+    }
     .word {
-      margin: 48px 0 0;
+      margin: 0;
       font-family: var(--display);
-      font-size: clamp(56px, 7vw, 96px);
+      font-size: clamp(48px, 8vw, 96px);
       font-style: italic;
       font-weight: 400;
       line-height: 0.9;
@@ -318,8 +354,9 @@ export function renderPage(): string {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 18px 24px;
-      margin-top: auto;
+      margin-top: 28px;
     }
+    .facts.is-empty { display: none; }
     .facts dt { color: var(--faint); margin: 0 0 6px; }
     .facts dd {
       margin: 0;
@@ -331,13 +368,17 @@ export function renderPage(): string {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      margin-top: 32px;
+      margin-top: auto;
       padding-top: 20px;
       border-top: 1px solid var(--line);
     }
     .panel {
       width: min(1080px, 100% - 56px);
-      margin: 36px auto 64px;
+      margin: 0 auto;
+      padding: 36px 0 48px;
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
     }
     .panel h2 {
       margin: 0;
@@ -398,6 +439,7 @@ export function renderPage(): string {
       font-family: var(--mono);
       font-size: 11px;
       letter-spacing: 0.04em;
+      flex: none;
     }
     .scrim {
       position: fixed;
@@ -465,8 +507,7 @@ export function renderPage(): string {
         margin-right: 0;
         border-top: 1px solid var(--line);
       }
-      .board { grid-template-columns: 1fr; }
-      .machine + .machine { border-left: 0; border-top: 1px solid var(--line); }
+      .machine { padding: 24px 20px 20px; }
       .panel { width: min(1080px, 100% - 40px); }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -486,19 +527,18 @@ export function renderPage(): string {
       ${MARK.replace('class="mark"', 'class="mark gate-mark"')}
       <p class="kicker gate-kicker">Control Plane</p>
       <h1 class="gate-title">Debug Session</h1>
-      <p class="lede">粘贴 Admin Token，打开或关闭两个预留槽。计算仍在 GitHub 上，此页只是开关。</p>
       <label class="kicker gate-label" for="token">Admin Token</label>
-      <input id="token" class="field" type="password" autocomplete="off" placeholder="粘贴管理密钥">
-      <button class="btn btn-primary gate-enter" id="enter" type="button">进入</button>
+      <input id="token" class="field" type="password" autocomplete="off" placeholder="Paste the admin secret">
+      <button class="btn btn-primary gate-enter" id="enter" type="button">Enter</button>
       <p class="gate-error" id="gate-error"></p>
     </div>
     <dl class="gate-foot">
       <div>
-        <dt>仓库</dt>
+        <dt>Repo</dt>
         <dd><a href="https://github.com/autoactions/debug-session" target="_blank" rel="noreferrer">autoactions/debug-session</a></dd>
       </div>
       <div>
-        <dt>接口</dt>
+        <dt>API</dt>
         <dd>Bearer · GET /api/slots</dd>
       </div>
     </dl>
@@ -506,60 +546,80 @@ export function renderPage(): string {
   <div id="app" class="hidden">
     <header>
       <div class="brand">${MARK.replace('class="mark"', 'class="mark brand-mark"')} Debug Session</div>
-      <nav class="tabs" aria-label="视图">
-        <button class="tab" type="button" data-view="slots" aria-selected="true">槽</button>
-        <button class="tab" type="button" data-view="journal" aria-selected="false">日志</button>
-        <button class="tab" type="button" data-view="api" aria-selected="false">接口</button>
+      <nav class="tabs" aria-label="Views">
+        <button class="tab" type="button" data-view="slots" aria-selected="true">Slots</button>
+        <button class="tab" type="button" data-view="journal" aria-selected="false">Journal</button>
+        <button class="tab" type="button" data-view="api" aria-selected="false">API</button>
       </nav>
-      <button class="btn btn-quiet" id="lock" type="button">锁定</button>
+      <button class="btn btn-quiet" id="lock" type="button">Lock</button>
     </header>
     <main class="stage">
       <section id="view-slots" class="board">
         <article class="machine" data-slot="linux">
           <div class="host-row">
-            <div>
-              <p class="kicker os">Linux</p>
-              <div class="host">debug-session-linux</div>
+            <div class="seg" role="radiogroup" aria-label="Slot">
+              <button type="button" class="seg-btn" data-slot-pick="linux" role="radio" aria-checked="true">Linux</button>
+              <button type="button" class="seg-btn" data-slot-pick="windows" role="radio" aria-checked="false">Windows</button>
             </div>
+          </div>
+          <div class="status">
+            <div class="word is-off" data-word>off</div>
             <span class="led" data-led></span>
           </div>
-          <div class="word is-off" data-word>off</div>
-          <dl class="facts">
-            <div><dt>Slot</dt><dd>linux</dd></div>
-            <div><dt>Run</dt><dd data-run>—</dd></div>
-            <div><dt>Access</dt><dd data-access>—</dd></div>
-            <div><dt>Session</dt><dd data-session>—</dd></div>
+          <dl class="facts is-empty">
+            <div class="hidden" data-run-fact>
+              <dt data-run-label>Last run</dt>
+              <dd data-run>—</dd>
+            </div>
+            <div class="hidden" data-access-fact>
+              <dt>Access</dt>
+              <dd data-access></dd>
+            </div>
+            <div class="hidden" data-session-fact>
+              <dt>Session</dt>
+              <dd data-session></dd>
+            </div>
           </dl>
           <div class="actions">
-            <button class="btn btn-primary" data-action="start" type="button">打开</button>
-            <button class="btn btn-ghost" data-action="stop" type="button" disabled>关闭</button>
+            <button class="btn btn-primary" data-action="start" type="button">Open</button>
+            <button class="btn btn-ghost" data-action="stop" type="button" disabled>Close</button>
           </div>
         </article>
-        <article class="machine" data-slot="windows">
+        <article class="machine hidden" data-slot="windows">
           <div class="host-row">
-            <div>
-              <p class="kicker os">Windows</p>
-              <div class="host">debug-session-windows</div>
+            <div class="seg" role="radiogroup" aria-label="Slot">
+              <button type="button" class="seg-btn" data-slot-pick="linux" role="radio" aria-checked="false">Linux</button>
+              <button type="button" class="seg-btn" data-slot-pick="windows" role="radio" aria-checked="true">Windows</button>
             </div>
+          </div>
+          <div class="status">
+            <div class="word is-off" data-word>off</div>
             <span class="led" data-led></span>
           </div>
-          <div class="word is-off" data-word>off</div>
-          <dl class="facts">
-            <div><dt>Slot</dt><dd>windows</dd></div>
-            <div><dt>Run</dt><dd data-run>—</dd></div>
-            <div><dt>WSL</dt><dd data-wsl>—</dd></div>
-            <div><dt>Session</dt><dd data-session>—</dd></div>
+          <dl class="facts is-empty">
+            <div class="hidden" data-run-fact>
+              <dt data-run-label>Last run</dt>
+              <dd data-run>—</dd>
+            </div>
+            <div class="hidden" data-wsl-fact>
+              <dt>WSL</dt>
+              <dd data-wsl></dd>
+            </div>
+            <div class="hidden" data-session-fact>
+              <dt>Session</dt>
+              <dd data-session></dd>
+            </div>
           </dl>
           <div class="actions">
-            <button class="btn btn-primary" data-action="start" type="button">打开</button>
-            <button class="btn btn-ghost" data-action="stop" type="button" disabled>关闭</button>
+            <button class="btn btn-primary" data-action="start" type="button">Open</button>
+            <button class="btn btn-ghost" data-action="stop" type="button" disabled>Close</button>
           </div>
         </article>
       </section>
       <section id="view-journal" class="panel hidden">
-        <h2>日志</h2>
-        <p class="lede">此控制面发出的意图。Slot State 仍由 GitHub 运行推导，on 不表示 SSH 已就绪。</p>
-        <p class="empty" id="journal-empty">尚无意图</p>
+        <h2>Journal</h2>
+        <p class="lede">Intents this control plane sent. Slot state is still derived from the GitHub run; on does not mean SSH is ready.</p>
+        <p class="empty" id="journal-empty">No intents yet</p>
         <table class="hidden" id="journal-table">
           <thead>
             <tr>
@@ -573,54 +633,54 @@ export function renderPage(): string {
         </table>
       </section>
       <section id="view-api" class="panel hidden">
-        <h2>接口</h2>
-        <p class="lede">四个 Bearer 路由。Authorization: Bearer &lt;Admin Token&gt;。</p>
+        <h2>API</h2>
+        <p class="lede">Four Bearer routes. Authorization: Bearer &lt;Admin Token&gt;.</p>
         <div class="routes">
           <div class="route">
             <div class="method">GET</div>
             <div>
               <div class="path">/api/slots</div>
-              <p class="blurb">列出两个槽的 Slot State、主机名与运行链接。</p>
+              <p class="blurb">List both slots with slot state, hostname, and run link.</p>
             </div>
-            <button class="btn btn-quiet" type="button" data-copy="/api/slots">复制</button>
+            <button class="btn btn-quiet" type="button" data-copy="/api/slots">Copy</button>
           </div>
           <div class="route">
             <div class="method">GET</div>
             <div>
               <div class="path">/api/slots/{linux|windows}</div>
-              <p class="blurb">读取单个槽。state 为 off / starting / on / stopping / failed。</p>
+              <p class="blurb">Read one slot. state is off / starting / on / stopping / failed.</p>
             </div>
-            <button class="btn btn-quiet" type="button" data-copy="/api/slots/linux">复制</button>
+            <button class="btn btn-quiet" type="button" data-copy="/api/slots/linux">Copy</button>
           </div>
           <div class="route">
             <div class="method">POST</div>
             <div>
               <div class="path">/api/slots/{linux|windows}/start</div>
-              <p class="blurb">打开 Debug Session。Linux 可带 Access Profile 与 Session Profile；Windows 可带 Session Profile 与 WSL。</p>
+              <p class="blurb">Open a Debug Session. Linux accepts Access Profile and Session Profile; Windows accepts Session Profile and WSL.</p>
             </div>
-            <button class="btn btn-quiet" type="button" data-copy="/api/slots/linux/start">复制</button>
+            <button class="btn btn-quiet" type="button" data-copy="/api/slots/linux/start">Copy</button>
           </div>
           <div class="route">
             <div class="method">POST</div>
             <div>
               <div class="path">/api/slots/{linux|windows}/stop</div>
-              <p class="blurb">关闭进行中的 Debug Session。</p>
+              <p class="blurb">Close a running Debug Session.</p>
             </div>
-            <button class="btn btn-quiet" type="button" data-copy="/api/slots/linux/stop">复制</button>
+            <button class="btn btn-quiet" type="button" data-copy="/api/slots/linux/stop">Copy</button>
           </div>
         </div>
       </section>
     </main>
-    <footer class="app-foot">on 表示运行在进行中，不表示 SSH 已就绪</footer>
+    <footer class="app-foot">on = run in progress, not SSH ready</footer>
   </div>
   <div id="dialog" class="scrim hidden" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
     <form class="dialog" id="start-form">
-      <h3 id="dialog-title">打开</h3>
+      <h3 id="dialog-title">Open</h3>
       <p class="hint" id="dialog-hint"></p>
       <div class="stack" id="dialog-fields"></div>
       <div class="dialog-actions">
-        <button class="btn btn-ghost" id="dialog-cancel" type="button">取消</button>
-        <button class="btn btn-primary" type="submit">确认</button>
+        <button class="btn btn-ghost" id="dialog-cancel" type="button">Cancel</button>
+        <button class="btn btn-primary" id="dialog-submit" type="submit">Confirm</button>
       </div>
     </form>
   </div>
@@ -629,6 +689,7 @@ export function renderPage(): string {
     const STORAGE = "debug-session-admin-token";
     const PROFILE_KEY = "debug-session-profiles";
     const JOURNAL_KEY = "debug-session-journal";
+    const SLOT_KEY = "debug-session-slot";
     const tokenInput = document.getElementById("token");
     const gateError = document.getElementById("gate-error");
     const gate = document.getElementById("gate");
@@ -639,12 +700,15 @@ export function renderPage(): string {
     const dialogTitle = document.getElementById("dialog-title");
     const dialogHint = document.getElementById("dialog-hint");
     const dialogFields = document.getElementById("dialog-fields");
+    const dialogSubmit = document.getElementById("dialog-submit");
     const closing = { linux: false, windows: false };
     const profiles = loadProfiles();
     let journal = loadJournal();
     let toastTimer = 0;
     let startSlot = "linux";
+    let dialogMode = "start";
     let view = "slots";
+    let activeSlot = sessionStorage.getItem(SLOT_KEY) === "windows" ? "windows" : "linux";
 
     tokenInput.value = sessionStorage.getItem(STORAGE) || "";
 
@@ -683,7 +747,7 @@ export function renderPage(): string {
 
     function setView(name) {
       view = name;
-      document.querySelectorAll(".tab").forEach(function (tab) {
+      document.querySelectorAll(".tabs .tab").forEach(function (tab) {
         tab.setAttribute("aria-selected", tab.dataset.view === name ? "true" : "false");
       });
       document.getElementById("view-slots").classList.toggle("hidden", name !== "slots");
@@ -691,11 +755,23 @@ export function renderPage(): string {
       document.getElementById("view-api").classList.toggle("hidden", name !== "api");
     }
 
+    function setSlot(id) {
+      activeSlot = id === "windows" ? "windows" : "linux";
+      sessionStorage.setItem(SLOT_KEY, activeSlot);
+      document.querySelectorAll("[data-slot-pick]").forEach(function (btn) {
+        btn.setAttribute("aria-checked", btn.dataset.slotPick === activeSlot ? "true" : "false");
+      });
+      document.querySelectorAll(".machine").forEach(function (card) {
+        card.classList.toggle("hidden", card.dataset.slot !== activeSlot);
+      });
+    }
+
     function unlock() {
       gate.classList.add("hidden");
       app.classList.remove("hidden");
       document.body.classList.add("is-app");
       setView(view);
+      setSlot(activeSlot);
     }
 
     function lock() {
@@ -705,7 +781,7 @@ export function renderPage(): string {
       app.classList.add("hidden");
       gate.classList.remove("hidden");
       document.body.classList.remove("is-app");
-      toast("已锁定");
+      toast("Locked");
     }
 
     async function api(path, method, body) {
@@ -740,14 +816,31 @@ export function renderPage(): string {
       const led = card.querySelector("[data-led]");
       const live = slot.state === "on" || slot.state === "starting";
       led.className = "led" + (live ? " is-live" : "") + (slot.state === "failed" ? " is-failed" : "");
-      card.querySelector("[data-run]").innerHTML = runLabel(slot);
-      const remembered = profiles[slot.id] || {};
-      if (slot.id === "linux") {
-        card.querySelector("[data-access]").textContent = remembered.access_profile || "—";
-      } else {
-        card.querySelector("[data-wsl]").textContent = remembered.enable_wsl === "true" ? "on" : remembered.enable_wsl === "false" ? "off" : "—";
+      const runLabelEl = card.querySelector("[data-run-label]");
+      if (runLabelEl) {
+        runLabelEl.textContent = (slot.state === "off" || slot.state === "failed") ? "Last run" : "Run";
       }
-      card.querySelector("[data-session]").textContent = remembered.session_profile || "—";
+      card.querySelector("[data-run]").innerHTML = runLabel(slot);
+      const runFact = card.querySelector("[data-run-fact]");
+      if (runFact) runFact.classList.toggle("hidden", !slot.runUrl);
+      const remembered = profiles[slot.id] || {};
+      function setFact(name, value) {
+        const dd = card.querySelector("[data-" + name + "]");
+        if (!dd) return;
+        dd.textContent = value || "";
+        const fact = card.querySelector("[data-" + name + "-fact]");
+        if (fact) fact.classList.toggle("hidden", !value);
+      }
+      if (slot.id === "linux") {
+        setFact("access", remembered.access_profile || "");
+      } else {
+        setFact("wsl", remembered.enable_wsl === "true" ? "on" : remembered.enable_wsl === "false" ? "off" : "");
+      }
+      setFact("session", remembered.session_profile || "");
+      const facts = card.querySelector(".facts");
+      if (facts) {
+        facts.classList.toggle("is-empty", !facts.querySelector(":scope > div:not(.hidden)"));
+      }
       const active = slot.state === "on" || slot.state === "starting" || slot.state === "stopping";
       card.querySelector('[data-action="start"]').disabled = active;
       card.querySelector('[data-action="stop"]').disabled = !active;
@@ -796,7 +889,7 @@ export function renderPage(): string {
 
     async function enter() {
       if (!token()) {
-        gateError.textContent = "需要 Admin Token";
+        gateError.textContent = "Admin token required";
         return;
       }
       try {
@@ -805,16 +898,19 @@ export function renderPage(): string {
         gateError.textContent = "";
         unlock();
       } catch (err) {
-        gateError.textContent = err.message === "unauthorized" ? "Admin Token 无效" : err.message;
+        gateError.textContent = err.message === "unauthorized" ? "Invalid admin token" : err.message;
       }
     }
 
-    function openDialog(slot) {
+    function openStartDialog(slot) {
+      dialogMode = "start";
       startSlot = slot;
+      dialogSubmit.className = "btn btn-primary";
+      dialogSubmit.textContent = "Confirm";
       const remembered = profiles[slot] || {};
       if (slot === "linux") {
-        dialogTitle.textContent = "打开 Linux";
-        dialogHint.textContent = "Access Profile 决定入口通道；Session Profile 决定装机深度。";
+        dialogTitle.textContent = "Open Linux";
+        dialogHint.textContent = "Access Profile picks the entry path; Session Profile picks how deep the machine is provisioned.";
         dialogFields.innerHTML =
           '<label><span class="kicker">Access Profile</span>' +
           '<select class="field" name="access_profile">' +
@@ -827,8 +923,8 @@ export function renderPage(): string {
           '<option value="developer"' + (remembered.session_profile !== "core" ? " selected" : "") + ">developer</option>" +
           "</select></label>";
       } else {
-        dialogTitle.textContent = "打开 Windows";
-        dialogHint.textContent = "Session Profile 决定装机深度。需要 Linux 子系统时再打开 WSL。";
+        dialogTitle.textContent = "Open Windows";
+        dialogHint.textContent = "Session Profile picks provision depth. Turn on WSL only if you need a Linux subsystem.";
         dialogFields.innerHTML =
           '<label><span class="kicker">Session Profile</span>' +
           '<select class="field" name="session_profile">' +
@@ -844,6 +940,17 @@ export function renderPage(): string {
       dialog.classList.remove("hidden");
     }
 
+    function openStopDialog(slot) {
+      dialogMode = "stop";
+      startSlot = slot;
+      dialogTitle.textContent = slot === "windows" ? "Close Windows" : "Close Linux";
+      dialogHint.textContent = "This stops the GitHub run. SSH will drop.";
+      dialogFields.innerHTML = "";
+      dialogSubmit.className = "btn btn-danger";
+      dialogSubmit.textContent = "Close";
+      dialog.classList.remove("hidden");
+    }
+
     function closeDialog() {
       dialog.classList.add("hidden");
     }
@@ -853,25 +960,20 @@ export function renderPage(): string {
       if (event.key === "Enter") enter();
     });
     document.getElementById("lock").addEventListener("click", lock);
-    document.querySelectorAll(".tab").forEach(function (tab) {
+    document.querySelectorAll(".tabs .tab").forEach(function (tab) {
       tab.addEventListener("click", function () { setView(tab.dataset.view); });
+    });
+    document.querySelectorAll("[data-slot-pick]").forEach(function (btn) {
+      btn.addEventListener("click", function () { setSlot(btn.dataset.slotPick); });
     });
     document.querySelectorAll("[data-action]").forEach(function (button) {
       button.addEventListener("click", async function () {
         const slot = button.closest("[data-slot]").dataset.slot;
         if (button.dataset.action === "start") {
-          openDialog(slot);
+          openStartDialog(slot);
           return;
         }
-        try {
-          const next = await api("/api/slots/" + slot + "/stop", "POST");
-          closing[slot] = true;
-          paint(next);
-          record(slot, "stop", "关闭");
-          toast("已发出关闭");
-        } catch (err) {
-          toast(err.message);
-        }
+        openStopDialog(slot);
       });
     });
     document.getElementById("dialog-cancel").addEventListener("click", closeDialog);
@@ -880,6 +982,19 @@ export function renderPage(): string {
     });
     startForm.addEventListener("submit", async function (event) {
       event.preventDefault();
+      if (dialogMode === "stop") {
+        try {
+          const next = await api("/api/slots/" + startSlot + "/stop", "POST");
+          closing[startSlot] = true;
+          paint(next);
+          record(startSlot, "stop", "stop");
+          closeDialog();
+          toast("Stop sent");
+        } catch (err) {
+          toast(err.message);
+        }
+        return;
+      }
       const data = new FormData(startForm);
       const body = {};
       data.forEach(function (value, key) { body[key] = value; });
@@ -893,7 +1008,7 @@ export function renderPage(): string {
           : "session " + body.session_profile + " · wsl " + (body.enable_wsl === "true" ? "on" : "off");
         record(startSlot, "start", detail);
         closeDialog();
-        toast("已发出打开");
+        toast("Open sent");
       } catch (err) {
         toast(err.message);
       }
@@ -902,7 +1017,7 @@ export function renderPage(): string {
       button.addEventListener("click", async function () {
         try {
           await navigator.clipboard.writeText(button.dataset.copy);
-          toast("已复制");
+          toast("Copied");
         } catch (e) {
           toast(button.dataset.copy);
         }
