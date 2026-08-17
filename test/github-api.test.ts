@@ -86,6 +86,15 @@ describe("GitHub Actions adapter", () => {
     });
   });
 
+  it("dispatches linux with an override Access Profile", async () => {
+    const { github, calls } = githubWith(() => new Response(null, { status: 204 }));
+    await github.dispatch("linux", { access_profile: "full", session_profile: "core" });
+    expect(calls[0].body).toEqual({
+      ref: "main",
+      inputs: { access_profile: "full", session_profile: "core" },
+    });
+  });
+
   it("cancels a workflow run", async () => {
     const { github, calls } = githubWith(() => new Response(null, { status: 202 }));
     await github.cancel(99);

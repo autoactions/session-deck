@@ -28,5 +28,5 @@ All `/api/*` routes need `Authorization: Bearer <ADMIN_TOKEN>`.
 
 - `GET /api/slots`
 - `GET /api/slots/{linux|windows}`
-- `POST /api/slots/{linux|windows}/start`
+- `POST /api/slots/{linux|windows}/start` — optional JSON: Linux `{ "access_profile": "mini"|"full", "session_profile": "core"|"developer" }`, Windows `{ "session_profile": "core"|"developer", "enable_wsl": true|false }`
 - `POST /api/slots/{linux|windows}/stop`

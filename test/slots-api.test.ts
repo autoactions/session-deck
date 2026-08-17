@@ -195,6 +195,51 @@ describe("opening and closing slots", () => {
     expect(await listed.json()).toMatchObject({ id: "windows", state: "stopping" });
   });
 
+  it("opens an off linux slot with default Access and Session profiles", async () => {
+    const { fetch, github } = worker();
+    await api(fetch, "/api/slots/linux/start", { method: "POST" });
+    expect(github.lastInputs.linux).toEqual({
+      access_profile: "mini",
+      session_profile: "developer",
+    });
+  });
+
+  it("opens linux with Access Profile and Session Profile from the body", async () => {
+    const { fetch, github } = worker();
+    const opened = await api(fetch, "/api/slots/linux/start", {
+      method: "POST",
+      body: JSON.stringify({ access_profile: "full", session_profile: "core" }),
+    });
+    expect(opened.status).toBe(200);
+    expect(github.lastInputs.linux).toEqual({
+      access_profile: "full",
+      session_profile: "core",
+    });
+  });
+
+  it("opens windows with Session Profile and WSL from the body", async () => {
+    const { fetch, github } = worker();
+    const opened = await api(fetch, "/api/slots/windows/start", {
+      method: "POST",
+      body: JSON.stringify({ session_profile: "core", enable_wsl: true }),
+    });
+    expect(opened.status).toBe(200);
+    expect(github.lastInputs.windows).toEqual({
+      session_profile: "core",
+      enable_wsl: "true",
+    });
+  });
+
+  it("rejects an unknown Session Profile", async () => {
+    const { fetch } = worker();
+    const opened = await api(fetch, "/api/slots/linux/start", {
+      method: "POST",
+      body: JSON.stringify({ session_profile: "plan" }),
+    });
+    expect(opened.status).toBe(400);
+    expect(await opened.json()).toEqual({ error: "invalid session_profile" });
+  });
+
   it("treats closing an already off slot as success", async () => {
     const { fetch } = worker();
     const closed = await api(fetch, "/api/slots/windows/stop", { method: "POST" });

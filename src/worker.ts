@@ -1,8 +1,8 @@
 import type { GitHubActions } from "./github.ts";
-import { isSlotId } from "./github.ts";
+import { buildDispatchInputs, isSlotId } from "./github.ts";
 import type { SlotIntents } from "./intents.ts";
 import { memorySlotIntents } from "./intents.ts";
-import { renderPage } from "./page.ts";
+import { MARK_SVG, renderPage } from "./page.ts";
 import { isActive, listSlots, viewSlot } from "./slots.ts";
 
 export type WorkerDeps = {
@@ -33,6 +33,12 @@ async function route(request: Request, deps: WorkerDeps, intents: SlotIntents): 
     });
   }
 
+  if (request.method === "GET" && url.pathname === "/assets/mark.svg") {
+    return new Response(MARK_SVG, {
+      headers: { "content-type": "image/svg+xml; charset=utf-8" },
+    });
+  }
+
   if (url.pathname.startsWith("/api/")) {
     if (!deps.adminToken || !hasAdminToken(request, deps.adminToken)) {
       return Response.json({ error: "unauthorized" }, { status: 401 });
@@ -58,7 +64,11 @@ async function route(request: Request, deps: WorkerDeps, intents: SlotIntents): 
     if (request.method === "POST" && action === "start") {
       const current = viewSlot(slot, await deps.github.latestRun(slot), intents);
       if (isActive(current.state)) return Response.json(current);
-      await deps.github.dispatch(slot);
+      const body = await readJson(request);
+      if (!body.ok) return Response.json({ error: "invalid json" }, { status: 400 });
+      const parsed = buildDispatchInputs(slot, body.value);
+      if (!parsed.ok) return Response.json({ error: parsed.error }, { status: 400 });
+      await deps.github.dispatch(slot, parsed.inputs);
       intents.markStarting(slot);
       return Response.json(viewSlot(slot, await deps.github.latestRun(slot), intents));
     }
@@ -79,4 +89,14 @@ async function route(request: Request, deps: WorkerDeps, intents: SlotIntents): 
 function hasAdminToken(request: Request, adminToken: string): boolean {
   const header = request.headers.get("Authorization");
   return header === `Bearer ${adminToken}`;
+}
+
+async function readJson(request: Request): Promise<{ ok: true; value: unknown } | { ok: false }> {
+  const text = await request.text();
+  if (!text.trim()) return { ok: true, value: {} };
+  try {
+    return { ok: true, value: JSON.parse(text) };
+  } catch {
+    return { ok: false };
+  }
 }

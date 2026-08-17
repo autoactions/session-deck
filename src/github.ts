@@ -7,9 +7,11 @@ export type WorkflowRun = {
   htmlUrl: string;
 };
 
+export type DispatchInputs = Record<string, string>;
+
 export type GitHubActions = {
   latestRun(slot: SlotId): Promise<WorkflowRun | null>;
-  dispatch(slot: SlotId): Promise<void>;
+  dispatch(slot: SlotId, inputs?: DispatchInputs): Promise<void>;
   cancel(runId: number): Promise<void>;
 };
 
@@ -24,10 +26,45 @@ const WORKFLOW: Record<SlotId, string> = {
   windows: "windows.yml",
 };
 
-const DISPATCH_INPUTS: Record<SlotId, Record<string, string>> = {
+export const DISPATCH_INPUTS: Record<SlotId, DispatchInputs> = {
   linux: { access_profile: "mini", session_profile: "developer" },
   windows: { session_profile: "developer", enable_wsl: "false" },
 };
+
+export function buildDispatchInputs(
+  slot: SlotId,
+  raw: unknown,
+): { ok: true; inputs: DispatchInputs } | { ok: false; error: string } {
+  const body = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const session = readString(body.session_profile) ?? DISPATCH_INPUTS[slot].session_profile;
+  if (session !== "core" && session !== "developer") {
+    return { ok: false, error: "invalid session_profile" };
+  }
+
+  if (slot === "linux") {
+    const access = readString(body.access_profile) ?? DISPATCH_INPUTS.linux.access_profile;
+    if (access !== "mini" && access !== "full") {
+      return { ok: false, error: "invalid access_profile" };
+    }
+    return { ok: true, inputs: { access_profile: access, session_profile: session } };
+  }
+
+  const wsl = readFlag(body.enable_wsl) ?? DISPATCH_INPUTS.windows.enable_wsl;
+  if (wsl !== "true" && wsl !== "false") {
+    return { ok: false, error: "invalid enable_wsl" };
+  }
+  return { ok: true, inputs: { session_profile: session, enable_wsl: wsl } };
+}
+
+function readString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function readFlag(value: unknown): string | undefined {
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "string") return value;
+  return undefined;
+}
 
 export type GitHubActionsConfig = {
   token: string;
@@ -77,10 +114,10 @@ export function createGitHubActions(config: GitHubActionsConfig): GitHubActions 
       };
     },
 
-    async dispatch(slot) {
+    async dispatch(slot, inputs = DISPATCH_INPUTS[slot]) {
       await githubFetch(`/actions/workflows/${WORKFLOW[slot]}/dispatches`, {
         method: "POST",
-        body: JSON.stringify({ ref: config.ref, inputs: DISPATCH_INPUTS[slot] }),
+        body: JSON.stringify({ ref: config.ref, inputs }),
       });
     },
 
