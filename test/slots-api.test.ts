@@ -1,11 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { createWorker } from "../src/worker.ts";
 import { FakeGitHub } from "./fake-github.ts";
+import { FakeTailscale } from "./fake-tailscale.ts";
+
+const linuxFacts = {
+  startedAt: null,
+  openedBy: null,
+  ssh: "runner@debug-session-linux",
+  address: null,
+};
+
+const windowsFacts = {
+  startedAt: null,
+  openedBy: null,
+  ssh: "runneradmin@debug-session-windows",
+  address: null,
+};
 
 const adminToken = "test-admin-token";
 
-function worker(github = new FakeGitHub()) {
-  return { github, fetch: createWorker({ adminToken, github }) };
+function worker(github = new FakeGitHub(), tailscale?: FakeTailscale) {
+  return { github, fetch: createWorker({ adminToken, github, tailscale }) };
 }
 
 function api(
@@ -50,12 +65,14 @@ describe("reading slots", () => {
           hostname: "debug-session-linux",
           state: "off",
           runUrl: null,
+          ...linuxFacts,
         },
         {
           id: "windows",
           hostname: "debug-session-windows",
           state: "off",
           runUrl: null,
+          ...windowsFacts,
         },
       ],
     });
@@ -68,6 +85,8 @@ describe("reading slots", () => {
       status: "in_progress",
       conclusion: null,
       htmlUrl: "https://github.com/autoactions/debug-session/actions/runs/42",
+      startedAt: "2026-08-18T10:00:00Z",
+      openedBy: "octo",
     };
     const { fetch } = worker(github);
     const response = await api(fetch, "/api/slots/linux");
@@ -77,6 +96,10 @@ describe("reading slots", () => {
       hostname: "debug-session-linux",
       state: "on",
       runUrl: "https://github.com/autoactions/debug-session/actions/runs/42",
+      startedAt: "2026-08-18T10:00:00Z",
+      openedBy: "octo",
+      ssh: "runner@debug-session-linux",
+      address: null,
     });
   });
 
@@ -93,12 +116,16 @@ describe("reading slots", () => {
       status: "queued",
       conclusion: null,
       htmlUrl: "https://github.com/autoactions/debug-session/actions/runs/1",
+      startedAt: null,
+      openedBy: null,
     };
     github.runs.windows = {
       id: 2,
       status: "completed",
       conclusion: "failure",
       htmlUrl: "https://github.com/autoactions/debug-session/actions/runs/2",
+      startedAt: "2026-08-18T09:00:00Z",
+      openedBy: "octo",
     };
     const { fetch } = worker(github);
     const response = await api(fetch, "/api/slots");
@@ -125,6 +152,10 @@ describe("opening and closing slots", () => {
       id: "linux",
       state: "starting",
       hostname: "debug-session-linux",
+      ssh: "runner@debug-session-linux",
+      address: null,
+      startedAt: null,
+      openedBy: null,
     });
   });
 
@@ -153,6 +184,7 @@ describe("opening and closing slots", () => {
       hostname: "debug-session-linux",
       state: "starting",
       runUrl: "https://github.com/autoactions/debug-session/actions/runs/1",
+      ...linuxFacts,
     });
   });
 
@@ -163,6 +195,8 @@ describe("opening and closing slots", () => {
       status: "in_progress",
       conclusion: null,
       htmlUrl: "https://github.com/autoactions/debug-session/actions/runs/7",
+      startedAt: "2026-08-18T10:00:00Z",
+      openedBy: "octo",
     };
     const { fetch } = worker(github);
     const opened = await api(fetch, "/api/slots/linux/start", { method: "POST" });
@@ -171,6 +205,10 @@ describe("opening and closing slots", () => {
       hostname: "debug-session-linux",
       state: "on",
       runUrl: "https://github.com/autoactions/debug-session/actions/runs/7",
+      startedAt: "2026-08-18T10:00:00Z",
+      openedBy: "octo",
+      ssh: "runner@debug-session-linux",
+      address: null,
     });
     expect(github.runs.linux?.id).toBe(7);
   });
@@ -182,6 +220,8 @@ describe("opening and closing slots", () => {
       status: "in_progress",
       conclusion: null,
       htmlUrl: "https://github.com/autoactions/debug-session/actions/runs/9",
+      startedAt: "2026-08-18T10:00:00Z",
+      openedBy: "octo",
     };
     const { fetch } = worker(github);
     const closed = await api(fetch, "/api/slots/windows/stop", { method: "POST" });
@@ -245,5 +285,112 @@ describe("opening and closing slots", () => {
     const closed = await api(fetch, "/api/slots/windows/stop", { method: "POST" });
     expect(closed.status).toBe(200);
     expect(await closed.json()).toMatchObject({ id: "windows", state: "off" });
+  });
+});
+
+describe("Join", () => {
+  it("keeps an in-progress run starting until the reserved hostname is online", async () => {
+    const github = new FakeGitHub();
+    github.runs.linux = {
+      id: 42,
+      status: "in_progress",
+      conclusion: null,
+      htmlUrl: "https://github.com/autoactions/debug-session/actions/runs/42",
+      startedAt: "2026-08-18T10:00:00Z",
+      openedBy: "octo",
+    };
+    const tailscale = new FakeTailscale();
+    const { fetch } = worker(github, tailscale);
+    const response = await api(fetch, "/api/slots/linux");
+    expect(await response.json()).toMatchObject({
+      id: "linux",
+      state: "starting",
+      address: null,
+    });
+  });
+
+  it("reports on with the tailnet address when the reserved hostname is online", async () => {
+    const github = new FakeGitHub();
+    github.runs.linux = {
+      id: 42,
+      status: "in_progress",
+      conclusion: null,
+      htmlUrl: "https://github.com/autoactions/debug-session/actions/runs/42",
+      startedAt: "2026-08-18T10:00:00Z",
+      openedBy: "octo",
+    };
+    const tailscale = new FakeTailscale();
+    tailscale.online["debug-session-linux"] = "100.64.0.10";
+    const { fetch } = worker(github, tailscale);
+    const response = await api(fetch, "/api/slots/linux");
+    expect(await response.json()).toEqual({
+      id: "linux",
+      hostname: "debug-session-linux",
+      state: "on",
+      runUrl: "https://github.com/autoactions/debug-session/actions/runs/42",
+      startedAt: "2026-08-18T10:00:00Z",
+      openedBy: "octo",
+      ssh: "runner@debug-session-linux",
+      address: "100.64.0.10",
+    });
+  });
+
+  it("stays starting while queued even if a leftover device is still online", async () => {
+    const github = new FakeGitHub();
+    github.runs.linux = {
+      id: 3,
+      status: "queued",
+      conclusion: null,
+      htmlUrl: "https://github.com/autoactions/debug-session/actions/runs/3",
+      startedAt: null,
+      openedBy: "octo",
+    };
+    const tailscale = new FakeTailscale();
+    tailscale.online["debug-session-linux"] = "100.64.0.10";
+    const { fetch } = worker(github, tailscale);
+    const response = await api(fetch, "/api/slots/linux");
+    expect(await response.json()).toMatchObject({
+      id: "linux",
+      state: "starting",
+      address: null,
+    });
+  });
+
+  it("stays starting after open when a leftover device is still online", async () => {
+    const github = {
+      latestRun: async () => null,
+      dispatch: async () => {},
+      cancel: async () => {},
+    };
+    const tailscale = new FakeTailscale();
+    tailscale.online["debug-session-linux"] = "100.64.0.10";
+    const fetchImpl = createWorker({ adminToken, github, tailscale });
+    const opened = await api(fetchImpl, "/api/slots/linux/start", { method: "POST" });
+    expect(await opened.json()).toMatchObject({
+      id: "linux",
+      state: "starting",
+      address: null,
+    });
+  });
+
+  it("still reports stopping while the hostname is online", async () => {
+    const github = new FakeGitHub();
+    github.runs.windows = {
+      id: 9,
+      status: "in_progress",
+      conclusion: null,
+      htmlUrl: "https://github.com/autoactions/debug-session/actions/runs/9",
+      startedAt: "2026-08-18T10:00:00Z",
+      openedBy: "octo",
+    };
+    const tailscale = new FakeTailscale();
+    tailscale.online["debug-session-windows"] = "100.64.0.11";
+    const { fetch } = worker(github, tailscale);
+    const closed = await api(fetch, "/api/slots/windows/stop", { method: "POST" });
+    expect(await closed.json()).toMatchObject({
+      id: "windows",
+      state: "stopping",
+      address: null,
+    });
   });
 });

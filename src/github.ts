@@ -5,6 +5,8 @@ export type WorkflowRun = {
   status: string;
   conclusion: string | null;
   htmlUrl: string;
+  startedAt: string | null;
+  openedBy: string | null;
 };
 
 export type DispatchInputs = Record<string, string>;
@@ -102,6 +104,8 @@ export function createGitHubActions(config: GitHubActionsConfig): GitHubActions 
           status: string;
           conclusion: string | null;
           html_url: string;
+          run_started_at?: string | null;
+          actor?: { login?: string } | null;
         }>;
       };
       const run = body.workflow_runs?.[0];
@@ -111,6 +115,8 @@ export function createGitHubActions(config: GitHubActionsConfig): GitHubActions 
         status: run.status,
         conclusion: run.conclusion,
         htmlUrl: run.html_url,
+        startedAt: typeof run.run_started_at === "string" ? run.run_started_at : null,
+        openedBy: typeof run.actor?.login === "string" ? run.actor.login : null,
       };
     },
 

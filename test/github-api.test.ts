@@ -36,6 +36,8 @@ describe("GitHub Actions adapter", () => {
             status: "in_progress",
             conclusion: null,
             html_url: "https://github.com/autoactions/debug-session/actions/runs/88",
+            run_started_at: "2026-08-18T10:00:00Z",
+            actor: { login: "octo" },
           },
         ],
       }),
@@ -46,6 +48,8 @@ describe("GitHub Actions adapter", () => {
       status: "in_progress",
       conclusion: null,
       htmlUrl: "https://github.com/autoactions/debug-session/actions/runs/88",
+      startedAt: "2026-08-18T10:00:00Z",
+      openedBy: "octo",
     });
     expect(calls[0]).toMatchObject({
       method: "GET",

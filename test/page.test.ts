@@ -36,7 +36,14 @@ describe("management page", () => {
     expect(html).toContain("Journal");
     expect(html).toContain("Slots");
     expect(html).toContain("Last run");
-    expect(html).toContain("on = run in progress, not SSH ready");
+    expect(html).toContain(">Host<");
+    expect(html).toContain(">SSH<");
+    expect(html).toContain(">Address<");
+    expect(html).toContain(">For<");
+    expect(html).toContain(">Elapsed<");
+    expect(html).toContain(">Left<");
+    expect(html).not.toContain("on = run in progress, not SSH ready");
+    expect(html).toContain("on = reserved hostname is on the tailnet");
     expect(html).toContain("Close Linux");
     expect(html).toContain("This stops the GitHub run");
     expect(html).toContain("btn-danger");

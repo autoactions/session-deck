@@ -1,3 +1,5 @@
+import { SESSION_DEADLINE_MINUTES } from "./slots.ts";
+
 export const MARK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
   <circle cx="16" cy="16" r="13" stroke="#f2f2f0" stroke-width="1"/>
   <circle cx="16" cy="16" r="5.5" fill="#f2f2f0"/>
@@ -364,6 +366,13 @@ export function renderPage(): string {
     }
     .facts a { text-decoration: none; border-bottom: 1px solid var(--line-strong); }
     .facts a:hover { border-bottom-color: var(--fg); }
+    .fact-copy {
+      min-height: 0;
+      padding: 0;
+      color: var(--fg);
+      font-size: 14px;
+    }
+    .fact-copy:hover:not(:disabled) { color: var(--muted); }
     .actions {
       display: flex;
       flex-wrap: wrap;
@@ -567,6 +576,30 @@ export function renderPage(): string {
             <span class="led" data-led></span>
           </div>
           <dl class="facts is-empty">
+            <div class="hidden" data-host-fact>
+              <dt>Host</dt>
+              <dd data-host></dd>
+            </div>
+            <div class="hidden" data-ssh-fact>
+              <dt>SSH</dt>
+              <dd><button class="btn btn-quiet fact-copy" type="button" data-copy data-ssh-copy></button></dd>
+            </div>
+            <div class="hidden" data-address-fact>
+              <dt>Address</dt>
+              <dd data-address></dd>
+            </div>
+            <div class="hidden" data-opened-fact>
+              <dt>For</dt>
+              <dd data-opened></dd>
+            </div>
+            <div class="hidden" data-elapsed-fact>
+              <dt>Elapsed</dt>
+              <dd data-elapsed></dd>
+            </div>
+            <div class="hidden" data-left-fact>
+              <dt>Left</dt>
+              <dd data-left></dd>
+            </div>
             <div class="hidden" data-run-fact>
               <dt data-run-label>Last run</dt>
               <dd data-run>—</dd>
@@ -597,6 +630,30 @@ export function renderPage(): string {
             <span class="led" data-led></span>
           </div>
           <dl class="facts is-empty">
+            <div class="hidden" data-host-fact>
+              <dt>Host</dt>
+              <dd data-host></dd>
+            </div>
+            <div class="hidden" data-ssh-fact>
+              <dt>SSH</dt>
+              <dd><button class="btn btn-quiet fact-copy" type="button" data-copy data-ssh-copy></button></dd>
+            </div>
+            <div class="hidden" data-address-fact>
+              <dt>Address</dt>
+              <dd data-address></dd>
+            </div>
+            <div class="hidden" data-opened-fact>
+              <dt>For</dt>
+              <dd data-opened></dd>
+            </div>
+            <div class="hidden" data-elapsed-fact>
+              <dt>Elapsed</dt>
+              <dd data-elapsed></dd>
+            </div>
+            <div class="hidden" data-left-fact>
+              <dt>Left</dt>
+              <dd data-left></dd>
+            </div>
             <div class="hidden" data-run-fact>
               <dt data-run-label>Last run</dt>
               <dd data-run>—</dd>
@@ -618,7 +675,7 @@ export function renderPage(): string {
       </section>
       <section id="view-journal" class="panel hidden">
         <h2>Journal</h2>
-        <p class="lede">Intents this control plane sent. Slot state is still derived from the GitHub run; on does not mean SSH is ready.</p>
+        <p class="lede">Intents this control plane sent.</p>
         <p class="empty" id="journal-empty">No intents yet</p>
         <table class="hidden" id="journal-table">
           <thead>
@@ -648,7 +705,7 @@ export function renderPage(): string {
             <div class="method">GET</div>
             <div>
               <div class="path">/api/slots/{linux|windows}</div>
-              <p class="blurb">Read one slot. state is off / starting / on / stopping / failed.</p>
+              <p class="blurb">Read one slot. state is off / starting / on / stopping / failed. on means the reserved hostname is on the tailnet.</p>
             </div>
             <button class="btn btn-quiet" type="button" data-copy="/api/slots/linux">Copy</button>
           </div>
@@ -671,7 +728,7 @@ export function renderPage(): string {
         </div>
       </section>
     </main>
-    <footer class="app-foot">on = run in progress, not SSH ready</footer>
+    <footer class="app-foot">on = reserved hostname is on the tailnet</footer>
   </div>
   <div id="dialog" class="scrim hidden" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
     <form class="dialog" id="start-form">
@@ -804,6 +861,14 @@ export function renderPage(): string {
       return '<a href="' + slot.runUrl + '" target="_blank" rel="noreferrer">' + label + "</a>";
     }
 
+    function formatDuration(ms) {
+      const total = Math.max(0, Math.floor(ms / 60000));
+      if (total < 60) return total + "m";
+      const hours = Math.floor(total / 60);
+      const minutes = total % 60;
+      return minutes ? hours + "h " + String(minutes).padStart(2, "0") + "m" : hours + "h";
+    }
+
     function paint(slot) {
       if (closing[slot.id] && (slot.state === "on" || slot.state === "starting")) {
         slot = Object.assign({}, slot, { state: "stopping" });
@@ -815,6 +880,7 @@ export function renderPage(): string {
       word.className = "word is-" + slot.state;
       const led = card.querySelector("[data-led]");
       const live = slot.state === "on" || slot.state === "starting";
+      const active = slot.state === "on" || slot.state === "starting" || slot.state === "stopping";
       led.className = "led" + (live ? " is-live" : "") + (slot.state === "failed" ? " is-failed" : "");
       const runLabelEl = card.querySelector("[data-run-label]");
       if (runLabelEl) {
@@ -825,11 +891,30 @@ export function renderPage(): string {
       if (runFact) runFact.classList.toggle("hidden", !slot.runUrl);
       const remembered = profiles[slot.id] || {};
       function setFact(name, value) {
-        const dd = card.querySelector("[data-" + name + "]");
-        if (!dd) return;
-        dd.textContent = value || "";
         const fact = card.querySelector("[data-" + name + "-fact]");
-        if (fact) fact.classList.toggle("hidden", !value);
+        if (!fact) return;
+        const copy = fact.querySelector("[data-copy]");
+        if (copy) {
+          copy.textContent = value || "";
+          if (value) copy.setAttribute("data-copy", value);
+          else copy.removeAttribute("data-copy");
+        } else {
+          const dd = card.querySelector("[data-" + name + "]");
+          if (dd) dd.textContent = value || "";
+        }
+        fact.classList.toggle("hidden", !value);
+      }
+      setFact("host", active ? slot.hostname : "");
+      setFact("ssh", slot.state === "on" && slot.ssh ? "ssh " + slot.ssh : "");
+      setFact("address", slot.state === "on" ? (slot.address || "") : "");
+      setFact("opened", slot.openedBy || "");
+      if (active && slot.startedAt) {
+        const started = Date.parse(slot.startedAt);
+        setFact("elapsed", formatDuration(Date.now() - started));
+        setFact("left", formatDuration(started + ${SESSION_DEADLINE_MINUTES} * 60 * 1000 - Date.now()));
+      } else {
+        setFact("elapsed", "");
+        setFact("left", "");
       }
       if (slot.id === "linux") {
         setFact("access", remembered.access_profile || "");
@@ -841,7 +926,6 @@ export function renderPage(): string {
       if (facts) {
         facts.classList.toggle("is-empty", !facts.querySelector(":scope > div:not(.hidden)"));
       }
-      const active = slot.state === "on" || slot.state === "starting" || slot.state === "stopping";
       card.querySelector('[data-action="start"]').disabled = active;
       card.querySelector('[data-action="stop"]').disabled = !active;
     }
@@ -1013,15 +1097,15 @@ export function renderPage(): string {
         toast(err.message);
       }
     });
-    document.querySelectorAll("[data-copy]").forEach(function (button) {
-      button.addEventListener("click", async function () {
-        try {
-          await navigator.clipboard.writeText(button.dataset.copy);
-          toast("Copied");
-        } catch (e) {
-          toast(button.dataset.copy);
-        }
-      });
+    document.addEventListener("click", async function (event) {
+      const button = event.target.closest("[data-copy]");
+      if (!button || !button.dataset.copy) return;
+      try {
+        await navigator.clipboard.writeText(button.dataset.copy);
+        toast("Copied");
+      } catch (e) {
+        toast(button.dataset.copy);
+      }
     });
     document.addEventListener("keydown", function (event) {
       if (event.key === "Escape") closeDialog();

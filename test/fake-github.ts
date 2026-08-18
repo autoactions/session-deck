@@ -16,6 +16,8 @@ export class FakeGitHub implements GitHubActions {
       status: "queued",
       conclusion: null,
       htmlUrl: `https://github.com/autoactions/debug-session/actions/runs/${id}`,
+      startedAt: null,
+      openedBy: null,
     };
   }
 

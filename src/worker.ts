@@ -3,20 +3,24 @@ import { buildDispatchInputs, isSlotId } from "./github.ts";
 import type { SlotIntents } from "./intents.ts";
 import { memorySlotIntents } from "./intents.ts";
 import { MARK_SVG, renderPage } from "./page.ts";
-import { isActive, listSlots, viewSlot } from "./slots.ts";
+import { hostnameFor, isActive, listSlots, viewSlot } from "./slots.ts";
+import type { TailscaleNet } from "./tailscale.ts";
+import { unknownTailscale } from "./tailscale.ts";
 
 export type WorkerDeps = {
   adminToken: string;
   github: GitHubActions;
   intents?: SlotIntents;
+  tailscale?: TailscaleNet;
 };
 
 export function createWorker(deps: WorkerDeps): typeof fetch {
   const intents = deps.intents ?? memorySlotIntents();
+  const tailscale = deps.tailscale ?? unknownTailscale();
   return async (input, init) => {
     const request = input instanceof Request ? input : new Request(input, init);
     try {
-      return await route(request, deps, intents);
+      return await route(request, { ...deps, tailscale }, intents);
     } catch (error) {
       const message = error instanceof Error ? error.message : "upstream error";
       return Response.json({ error: message }, { status: 502 });
@@ -24,7 +28,11 @@ export function createWorker(deps: WorkerDeps): typeof fetch {
   };
 }
 
-async function route(request: Request, deps: WorkerDeps, intents: SlotIntents): Promise<Response> {
+async function route(
+  request: Request,
+  deps: WorkerDeps & { tailscale: TailscaleNet },
+  intents: SlotIntents,
+): Promise<Response> {
   const url = new URL(request.url);
 
   if (request.method === "GET" && url.pathname === "/") {
@@ -46,7 +54,7 @@ async function route(request: Request, deps: WorkerDeps, intents: SlotIntents): 
   }
 
   if (request.method === "GET" && url.pathname === "/api/slots") {
-    return Response.json({ slots: await listSlots(deps.github, intents) });
+    return Response.json({ slots: await listSlots(deps.github, intents, deps.tailscale) });
   }
 
   const slotMatch = url.pathname.match(/^\/api\/slots\/([^/]+)(?:\/(start|stop))?$/);
@@ -58,11 +66,18 @@ async function route(request: Request, deps: WorkerDeps, intents: SlotIntents): 
     }
 
     if (request.method === "GET" && !action) {
-      return Response.json(viewSlot(slot, await deps.github.latestRun(slot), intents));
+      return Response.json(
+        viewSlot(slot, await deps.github.latestRun(slot), intents, await deps.tailscale.status(hostnameFor(slot))),
+      );
     }
 
     if (request.method === "POST" && action === "start") {
-      const current = viewSlot(slot, await deps.github.latestRun(slot), intents);
+      const current = viewSlot(
+        slot,
+        await deps.github.latestRun(slot),
+        intents,
+        await deps.tailscale.status(hostnameFor(slot)),
+      );
       if (isActive(current.state)) return Response.json(current);
       const body = await readJson(request);
       if (!body.ok) return Response.json({ error: "invalid json" }, { status: 400 });
@@ -70,16 +85,18 @@ async function route(request: Request, deps: WorkerDeps, intents: SlotIntents): 
       if (!parsed.ok) return Response.json({ error: parsed.error }, { status: 400 });
       await deps.github.dispatch(slot, parsed.inputs);
       intents.markStarting(slot);
-      return Response.json(viewSlot(slot, await deps.github.latestRun(slot), intents));
+      return Response.json(
+        viewSlot(slot, await deps.github.latestRun(slot), intents, await deps.tailscale.status(hostnameFor(slot))),
+      );
     }
 
     if (request.method === "POST" && action === "stop") {
       const run = await deps.github.latestRun(slot);
-      const current = viewSlot(slot, run, intents);
+      const current = viewSlot(slot, run, intents, await deps.tailscale.status(hostnameFor(slot)));
       if (!isActive(current.state) || !run) return Response.json(current);
       await deps.github.cancel(run.id);
       intents.markStopping(run.id);
-      return Response.json(viewSlot(slot, run, intents));
+      return Response.json(viewSlot(slot, run, intents, await deps.tailscale.status(hostnameFor(slot))));
     }
   }
 
