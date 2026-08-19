@@ -352,6 +352,25 @@ export function renderPage(): string {
       gap: 16px;
       margin: 28px 0 0;
     }
+    .channels {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 18px;
+      margin-top: 16px;
+    }
+    .channel {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--faint);
+    }
+    .channel strong {
+      font-weight: 500;
+      color: var(--fg);
+      margin-left: 8px;
+    }
     .word {
       margin: 0;
       font-family: var(--display);
@@ -604,6 +623,10 @@ export function renderPage(): string {
             <div class="word is-off" data-word>off</div>
             <span class="led" data-led></span>
           </div>
+          <div class="channels hidden" data-channels>
+            <span class="channel hidden" data-ssh-channel>SSH <strong>open</strong></span>
+            <span class="channel hidden" data-rdp-channel>RDP <strong>open</strong></span>
+          </div>
           <dl class="facts is-empty">
             <div class="hidden" data-opened-fact>
               <dt>For</dt>
@@ -619,6 +642,10 @@ export function renderPage(): string {
             </div>
             <div class="hidden" data-ssh-fact>
               <dt>SSH</dt>
+              <dd><button class="btn btn-quiet fact-copy" type="button" data-copy></button></dd>
+            </div>
+            <div class="hidden" data-rdp-fact>
+              <dt>RDP</dt>
               <dd><button class="btn btn-quiet fact-copy" type="button" data-copy></button></dd>
             </div>
             <div class="hidden" data-left-fact>
@@ -662,6 +689,10 @@ export function renderPage(): string {
             <div class="word is-off" data-word>off</div>
             <span class="led" data-led></span>
           </div>
+          <div class="channels hidden" data-channels>
+            <span class="channel hidden" data-ssh-channel>SSH <strong>open</strong></span>
+            <span class="channel hidden" data-rdp-channel>RDP <strong>open</strong></span>
+          </div>
           <dl class="facts is-empty">
             <div class="hidden" data-opened-fact>
               <dt>For</dt>
@@ -677,6 +708,10 @@ export function renderPage(): string {
             </div>
             <div class="hidden" data-ssh-fact>
               <dt>SSH</dt>
+              <dd><button class="btn btn-quiet fact-copy" type="button" data-copy></button></dd>
+            </div>
+            <div class="hidden" data-rdp-fact>
+              <dt>RDP</dt>
               <dd><button class="btn btn-quiet fact-copy" type="button" data-copy></button></dd>
             </div>
             <div class="hidden" data-left-fact>
@@ -956,9 +991,20 @@ export function renderPage(): string {
         }
         fact.classList.toggle("hidden", !value);
       }
+      const sshOpen = joined;
+      const rdpOpen = joined && !!slot.rdp;
+      const channels = card.querySelector("[data-channels]");
+      if (channels) {
+        channels.classList.toggle("hidden", !sshOpen && !rdpOpen);
+        const sshChannel = channels.querySelector("[data-ssh-channel]");
+        const rdpChannel = channels.querySelector("[data-rdp-channel]");
+        if (sshChannel) sshChannel.classList.toggle("hidden", !sshOpen);
+        if (rdpChannel) rdpChannel.classList.toggle("hidden", !rdpOpen);
+      }
       setFact("opened", slot.openedBy || "");
       setFact("host", joined ? slot.hostname : "");
-      setFact("ssh", joined && slot.ssh ? "ssh " + slot.ssh : "");
+      setFact("ssh", sshOpen && slot.ssh ? "ssh " + slot.ssh : "");
+      setFact("rdp", rdpOpen ? slot.rdp : "");
       if (joined && slot.startedAt) {
         const started = Date.parse(slot.startedAt);
         setFact("left", formatDuration(started + ${SESSION_DEADLINE_MINUTES} * 60 * 1000 - Date.now()));

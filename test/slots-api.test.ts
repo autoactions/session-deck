@@ -7,6 +7,7 @@ const linuxFacts = {
   startedAt: null,
   openedBy: null,
   ssh: "runner@debug-session-linux",
+  rdp: null,
   address: null,
 };
 
@@ -14,6 +15,7 @@ const windowsFacts = {
   startedAt: null,
   openedBy: null,
   ssh: "runneradmin@debug-session-windows",
+  rdp: "debug-session-windows:3389",
   address: null,
 };
 
@@ -101,6 +103,7 @@ describe("reading slots", () => {
       startedAt: "2026-08-18T10:00:00Z",
       openedBy: "octo",
       ssh: "runner@debug-session-linux",
+      rdp: null,
       address: null,
     });
   });
@@ -155,6 +158,7 @@ describe("opening and closing slots", () => {
       state: "starting",
       hostname: "debug-session-linux",
       ssh: "runner@debug-session-linux",
+      rdp: null,
       address: null,
       startedAt: null,
       openedBy: null,
@@ -211,6 +215,7 @@ describe("opening and closing slots", () => {
       startedAt: "2026-08-18T10:00:00Z",
       openedBy: "octo",
       ssh: "runner@debug-session-linux",
+      rdp: null,
       address: null,
     });
     expect(github.runs.linux?.id).toBe(7);
@@ -258,6 +263,36 @@ describe("opening and closing slots", () => {
     expect(github.lastInputs.linux).toEqual({
       access_profile: "full",
       session_profile: "core",
+    });
+    expect(await opened.json()).toMatchObject({
+      id: "linux",
+      state: "starting",
+      rdp: "debug-session-linux:3389",
+    });
+  });
+
+  it("keeps linux RDP after a full session joins the tailnet", async () => {
+    const github = new FakeGitHub();
+    const tailscale = new FakeTailscale();
+    const { fetch } = worker(github, tailscale);
+    await api(fetch, "/api/slots/linux/start", {
+      method: "POST",
+      body: JSON.stringify({ access_profile: "full" }),
+    });
+    github.runs.linux = {
+      id: 12,
+      status: "in_progress",
+      conclusion: null,
+      htmlUrl: "https://github.com/autoactions/debug-session/actions/runs/12",
+      startedAt: "2026-08-18T10:00:00Z",
+      openedBy: "octo",
+    };
+    tailscale.online["debug-session-linux"] = "100.64.0.10";
+    const response = await api(fetch, "/api/slots/linux");
+    expect(await response.json()).toMatchObject({
+      id: "linux",
+      state: "on",
+      rdp: "debug-session-linux:3389",
     });
   });
 
@@ -335,6 +370,7 @@ describe("Join", () => {
       startedAt: "2026-08-18T10:00:00Z",
       openedBy: "octo",
       ssh: "runner@debug-session-linux",
+      rdp: null,
       address: "100.64.0.10",
     });
   });

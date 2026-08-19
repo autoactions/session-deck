@@ -15,6 +15,7 @@ export type SlotView = {
   startedAt: string | null;
   openedBy: string | null;
   ssh: string;
+  rdp: string | null;
   address: string | null;
 };
 
@@ -24,6 +25,11 @@ export function hostnameFor(slot: SlotId): string {
 
 export function sshFor(slot: SlotId): string {
   return slot === "linux" ? "runner@debug-session-linux" : "runneradmin@debug-session-windows";
+}
+
+export function rdpFor(slot: SlotId, access: "mini" | "full" | null = null): string | null {
+  if (slot === "windows" || access === "full") return `${hostnameFor(slot)}:3389`;
+  return null;
 }
 
 export function stateFromRun(run: WorkflowRun | null, join: JoinStatus["join"] = "unknown"): SlotState {
@@ -62,6 +68,8 @@ export function viewSlot(
     runUrl = null;
     startedAt = null;
     openedBy = null;
+  } else {
+    intents?.forgetAccess(id);
   }
 
   return {
@@ -72,6 +80,7 @@ export function viewSlot(
     startedAt,
     openedBy,
     ssh: sshFor(id),
+    rdp: rdpFor(id, intents?.accessFor(id) ?? null),
     address: state === "on" && net.join === "present" ? net.address : null,
   };
 }

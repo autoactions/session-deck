@@ -85,6 +85,9 @@ async function route(
       if (!parsed.ok) return json({ error: parsed.error }, 400);
       await deps.github.dispatch(slot, parsed.inputs);
       intents.markStarting(slot);
+      if (slot === "linux" && (parsed.inputs.access_profile === "mini" || parsed.inputs.access_profile === "full")) {
+        intents.rememberAccess(slot, parsed.inputs.access_profile);
+      }
       return json(
         viewSlot(slot, await deps.github.latestRun(slot), intents, await deps.tailscale.status(hostnameFor(slot))),
       );
