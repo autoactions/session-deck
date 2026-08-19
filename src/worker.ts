@@ -23,7 +23,7 @@ export function createWorker(deps: WorkerDeps): typeof fetch {
       return await route(request, { ...deps, tailscale }, intents);
     } catch (error) {
       const message = error instanceof Error ? error.message : "upstream error";
-      return Response.json({ error: message }, { status: 502 });
+      return json({ error: message }, 502);
     }
   };
 }
@@ -49,12 +49,12 @@ async function route(
 
   if (url.pathname.startsWith("/api/")) {
     if (!deps.adminToken || !hasAdminToken(request, deps.adminToken)) {
-      return Response.json({ error: "unauthorized" }, { status: 401 });
+      return json({ error: "unauthorized" }, 401);
     }
   }
 
   if (request.method === "GET" && url.pathname === "/api/slots") {
-    return Response.json({ slots: await listSlots(deps.github, intents, deps.tailscale) });
+    return json({ slots: await listSlots(deps.github, intents, deps.tailscale) });
   }
 
   const slotMatch = url.pathname.match(/^\/api\/slots\/([^/]+)(?:\/(start|stop))?$/);
@@ -62,11 +62,11 @@ async function route(
     const slot = slotMatch[1];
     const action = slotMatch[2];
     if (!isSlotId(slot)) {
-      return Response.json({ error: "not found" }, { status: 404 });
+      return json({ error: "not found" }, 404);
     }
 
     if (request.method === "GET" && !action) {
-      return Response.json(
+      return json(
         viewSlot(slot, await deps.github.latestRun(slot), intents, await deps.tailscale.status(hostnameFor(slot))),
       );
     }
@@ -78,14 +78,14 @@ async function route(
         intents,
         await deps.tailscale.status(hostnameFor(slot)),
       );
-      if (isActive(current.state)) return Response.json(current);
+      if (isActive(current.state)) return json(current);
       const body = await readJson(request);
-      if (!body.ok) return Response.json({ error: "invalid json" }, { status: 400 });
+      if (!body.ok) return json({ error: "invalid json" }, 400);
       const parsed = buildDispatchInputs(slot, body.value);
-      if (!parsed.ok) return Response.json({ error: parsed.error }, { status: 400 });
+      if (!parsed.ok) return json({ error: parsed.error }, 400);
       await deps.github.dispatch(slot, parsed.inputs);
       intents.markStarting(slot);
-      return Response.json(
+      return json(
         viewSlot(slot, await deps.github.latestRun(slot), intents, await deps.tailscale.status(hostnameFor(slot))),
       );
     }
@@ -93,14 +93,18 @@ async function route(
     if (request.method === "POST" && action === "stop") {
       const run = await deps.github.latestRun(slot);
       const current = viewSlot(slot, run, intents, await deps.tailscale.status(hostnameFor(slot)));
-      if (!isActive(current.state) || !run) return Response.json(current);
+      if (!isActive(current.state) || !run) return json(current);
       await deps.github.cancel(run.id);
       intents.markStopping(run.id);
-      return Response.json(viewSlot(slot, run, intents, await deps.tailscale.status(hostnameFor(slot))));
+      return json(viewSlot(slot, run, intents, await deps.tailscale.status(hostnameFor(slot))));
     }
   }
 
   return new Response("Not found", { status: 404 });
+}
+
+function json(data: unknown, status = 200): Response {
+  return Response.json(data, { status, headers: { "Cache-Control": "no-store" } });
 }
 
 function hasAdminToken(request: Request, adminToken: string): boolean {

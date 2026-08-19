@@ -58,6 +58,7 @@ describe("reading slots", () => {
     const { fetch } = worker();
     const response = await api(fetch, "/api/slots");
     expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(await response.json()).toEqual({
       slots: [
         {
@@ -91,6 +92,7 @@ describe("reading slots", () => {
     const { fetch } = worker(github);
     const response = await api(fetch, "/api/slots/linux");
     expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(await response.json()).toEqual({
       id: "linux",
       hostname: "debug-session-linux",
@@ -179,6 +181,7 @@ describe("opening and closing slots", () => {
     const { fetch } = worker();
     const opened = await api(fetch, "/api/slots/linux/start", { method: "POST" });
     expect(opened.status).toBe(200);
+    expect(opened.headers.get("Cache-Control")).toBe("no-store");
     expect(await opened.json()).toEqual({
       id: "linux",
       hostname: "debug-session-linux",
@@ -226,6 +229,7 @@ describe("opening and closing slots", () => {
     const { fetch } = worker(github);
     const closed = await api(fetch, "/api/slots/windows/stop", { method: "POST" });
     expect(closed.status).toBe(200);
+    expect(closed.headers.get("Cache-Control")).toBe("no-store");
     expect(await closed.json()).toMatchObject({
       id: "windows",
       state: "stopping",

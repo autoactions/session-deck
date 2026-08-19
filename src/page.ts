@@ -21,7 +21,7 @@ export function renderPage(): string {
   <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=Inter:ital,wght@0,400;0,500;0,600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
       color-scheme: dark;
@@ -49,6 +49,7 @@ export function renderPage(): string {
       height: 100dvh;
       min-height: 100dvh;
       font: 15px/1.45 var(--body);
+      font-style: normal;
       letter-spacing: -0.011em;
       background: var(--bg-2);
       color: var(--fg);
@@ -304,11 +305,25 @@ export function renderPage(): string {
       transition: background 150ms ease, color 150ms ease;
     }
     .seg-btn + .seg-btn { border-left: 1px solid var(--line-strong); }
-    .seg-btn:hover:not([aria-checked="true"]) { color: var(--fg); }
+    .seg-btn:hover:not([aria-checked="true"]):not(:disabled) { color: var(--fg); }
     .seg-btn[aria-checked="true"] {
       background: var(--fg);
       color: var(--accent-fg);
     }
+    .seg-btn:disabled { cursor: not-allowed; }
+    .opts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px 24px;
+      margin-top: 20px;
+    }
+    .opt {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .opt .kicker { color: var(--faint); }
     .led {
       position: relative;
       width: 6px;
@@ -341,17 +356,14 @@ export function renderPage(): string {
       margin: 0;
       font-family: var(--display);
       font-size: clamp(48px, 8vw, 96px);
-      font-style: italic;
+      font-style: normal;
       font-weight: 400;
       line-height: 0.9;
       letter-spacing: -0.03em;
       color: var(--fg);
     }
     .word.is-off, .word.is-stopping { color: var(--muted); }
-    .word.is-failed {
-      color: var(--failed);
-      font-style: normal;
-    }
+    .word.is-failed { color: var(--failed); }
     .facts {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -480,6 +492,7 @@ export function renderPage(): string {
       color: var(--muted);
     }
     .dialog .stack { display: grid; gap: 20px; margin-top: 28px; }
+    .dialog .stack:empty { display: none; }
     .dialog .stack .kicker { display: block; color: var(--faint); margin-bottom: 0; }
     .dialog-actions {
       display: flex;
@@ -571,46 +584,50 @@ export function renderPage(): string {
               <button type="button" class="seg-btn" data-slot-pick="windows" role="radio" aria-checked="false">Windows</button>
             </div>
           </div>
+          <div class="opts">
+            <div class="opt">
+              <span class="kicker">Session</span>
+              <div class="seg" role="radiogroup" aria-label="Session Profile">
+                <button type="button" class="seg-btn" data-session-pick="core" role="radio" aria-checked="false">core</button>
+                <button type="button" class="seg-btn" data-session-pick="developer" role="radio" aria-checked="true">developer</button>
+              </div>
+            </div>
+            <div class="opt">
+              <span class="kicker">Access</span>
+              <div class="seg" role="radiogroup" aria-label="Access Profile">
+                <button type="button" class="seg-btn" data-access-pick="mini" role="radio" aria-checked="true">mini</button>
+                <button type="button" class="seg-btn" data-access-pick="full" role="radio" aria-checked="false">full</button>
+              </div>
+            </div>
+          </div>
           <div class="status">
             <div class="word is-off" data-word>off</div>
             <span class="led" data-led></span>
           </div>
           <dl class="facts is-empty">
+            <div class="hidden" data-opened-fact>
+              <dt>For</dt>
+              <dd data-opened></dd>
+            </div>
+            <div class="hidden" data-run-fact>
+              <dt data-run-label>Last run</dt>
+              <dd data-run>—</dd>
+            </div>
             <div class="hidden" data-host-fact>
               <dt>Host</dt>
               <dd data-host></dd>
             </div>
             <div class="hidden" data-ssh-fact>
               <dt>SSH</dt>
-              <dd><button class="btn btn-quiet fact-copy" type="button" data-copy data-ssh-copy></button></dd>
-            </div>
-            <div class="hidden" data-address-fact>
-              <dt>Address</dt>
-              <dd data-address></dd>
-            </div>
-            <div class="hidden" data-opened-fact>
-              <dt>For</dt>
-              <dd data-opened></dd>
-            </div>
-            <div class="hidden" data-elapsed-fact>
-              <dt>Elapsed</dt>
-              <dd data-elapsed></dd>
+              <dd><button class="btn btn-quiet fact-copy" type="button" data-copy></button></dd>
             </div>
             <div class="hidden" data-left-fact>
               <dt>Left</dt>
               <dd data-left></dd>
             </div>
-            <div class="hidden" data-run-fact>
-              <dt data-run-label>Last run</dt>
-              <dd data-run>—</dd>
-            </div>
-            <div class="hidden" data-access-fact>
-              <dt>Access</dt>
-              <dd data-access></dd>
-            </div>
-            <div class="hidden" data-session-fact>
-              <dt>Session</dt>
-              <dd data-session></dd>
+            <div class="hidden" data-elapsed-fact>
+              <dt>Elapsed</dt>
+              <dd data-elapsed></dd>
             </div>
           </dl>
           <div class="actions">
@@ -625,46 +642,50 @@ export function renderPage(): string {
               <button type="button" class="seg-btn" data-slot-pick="windows" role="radio" aria-checked="true">Windows</button>
             </div>
           </div>
+          <div class="opts">
+            <div class="opt">
+              <span class="kicker">Session</span>
+              <div class="seg" role="radiogroup" aria-label="Session Profile">
+                <button type="button" class="seg-btn" data-session-pick="core" role="radio" aria-checked="false">core</button>
+                <button type="button" class="seg-btn" data-session-pick="developer" role="radio" aria-checked="true">developer</button>
+              </div>
+            </div>
+            <div class="opt">
+              <span class="kicker">WSL</span>
+              <div class="seg" role="radiogroup" aria-label="WSL">
+                <button type="button" class="seg-btn" data-wsl-pick="false" role="radio" aria-checked="true">off</button>
+                <button type="button" class="seg-btn" data-wsl-pick="true" role="radio" aria-checked="false">on</button>
+              </div>
+            </div>
+          </div>
           <div class="status">
             <div class="word is-off" data-word>off</div>
             <span class="led" data-led></span>
           </div>
           <dl class="facts is-empty">
+            <div class="hidden" data-opened-fact>
+              <dt>For</dt>
+              <dd data-opened></dd>
+            </div>
+            <div class="hidden" data-run-fact>
+              <dt data-run-label>Last run</dt>
+              <dd data-run>—</dd>
+            </div>
             <div class="hidden" data-host-fact>
               <dt>Host</dt>
               <dd data-host></dd>
             </div>
             <div class="hidden" data-ssh-fact>
               <dt>SSH</dt>
-              <dd><button class="btn btn-quiet fact-copy" type="button" data-copy data-ssh-copy></button></dd>
-            </div>
-            <div class="hidden" data-address-fact>
-              <dt>Address</dt>
-              <dd data-address></dd>
-            </div>
-            <div class="hidden" data-opened-fact>
-              <dt>For</dt>
-              <dd data-opened></dd>
-            </div>
-            <div class="hidden" data-elapsed-fact>
-              <dt>Elapsed</dt>
-              <dd data-elapsed></dd>
+              <dd><button class="btn btn-quiet fact-copy" type="button" data-copy></button></dd>
             </div>
             <div class="hidden" data-left-fact>
               <dt>Left</dt>
               <dd data-left></dd>
             </div>
-            <div class="hidden" data-run-fact>
-              <dt data-run-label>Last run</dt>
-              <dd data-run>—</dd>
-            </div>
-            <div class="hidden" data-wsl-fact>
-              <dt>WSL</dt>
-              <dd data-wsl></dd>
-            </div>
-            <div class="hidden" data-session-fact>
-              <dt>Session</dt>
-              <dd data-session></dd>
+            <div class="hidden" data-elapsed-fact>
+              <dt>Elapsed</dt>
+              <dd data-elapsed></dd>
             </div>
           </dl>
           <div class="actions">
@@ -786,6 +807,38 @@ export function renderPage(): string {
       sessionStorage.setItem(PROFILE_KEY, JSON.stringify(profiles));
     }
 
+    function profileFor(slot) {
+      const current = profiles[slot] || {};
+      if (slot === "linux") {
+        return {
+          access_profile: current.access_profile === "full" ? "full" : "mini",
+          session_profile: current.session_profile === "core" ? "core" : "developer",
+        };
+      }
+      return {
+        session_profile: current.session_profile === "core" ? "core" : "developer",
+        enable_wsl: current.enable_wsl === "true" ? "true" : "false",
+      };
+    }
+
+    function paintOpts(card, slot, editable) {
+      const chosen = profileFor(slot);
+      function mark(selector, value) {
+        card.querySelectorAll(selector).forEach(function (btn) {
+          const key = btn.dataset.accessPick || btn.dataset.sessionPick || btn.dataset.wslPick;
+          btn.setAttribute("aria-checked", key === value ? "true" : "false");
+          btn.disabled = !editable;
+        });
+      }
+      if (slot === "linux") {
+        mark("[data-access-pick]", chosen.access_profile);
+        mark("[data-session-pick]", chosen.session_profile);
+      } else {
+        mark("[data-session-pick]", chosen.session_profile);
+        mark("[data-wsl-pick]", chosen.enable_wsl);
+      }
+    }
+
     function loadJournal() {
       try { return JSON.parse(sessionStorage.getItem(JOURNAL_KEY) || "[]"); }
       catch (e) { return []; }
@@ -843,7 +896,7 @@ export function renderPage(): string {
 
     async function api(path, method, body) {
       const headers = { Authorization: "Bearer " + token() };
-      var init = { method: method || "GET", headers: headers };
+      var init = { method: method || "GET", headers: headers, cache: "no-store" };
       if (body) {
         headers["Content-Type"] = "application/json";
         init.body = JSON.stringify(body);
@@ -881,6 +934,7 @@ export function renderPage(): string {
       const led = card.querySelector("[data-led]");
       const live = slot.state === "on" || slot.state === "starting";
       const active = slot.state === "on" || slot.state === "starting" || slot.state === "stopping";
+      const joined = slot.state === "on" || slot.state === "stopping";
       led.className = "led" + (live ? " is-live" : "") + (slot.state === "failed" ? " is-failed" : "");
       const runLabelEl = card.querySelector("[data-run-label]");
       if (runLabelEl) {
@@ -889,39 +943,31 @@ export function renderPage(): string {
       card.querySelector("[data-run]").innerHTML = runLabel(slot);
       const runFact = card.querySelector("[data-run-fact]");
       if (runFact) runFact.classList.toggle("hidden", !slot.runUrl);
-      const remembered = profiles[slot.id] || {};
       function setFact(name, value) {
         const fact = card.querySelector("[data-" + name + "-fact]");
         if (!fact) return;
-        const copy = fact.querySelector("[data-copy]");
+        const copy = fact.querySelector(".fact-copy");
         if (copy) {
           copy.textContent = value || "";
-          if (value) copy.setAttribute("data-copy", value);
-          else copy.removeAttribute("data-copy");
+          copy.setAttribute("data-copy", value || "");
         } else {
-          const dd = card.querySelector("[data-" + name + "]");
+          const dd = fact.querySelector("[data-" + name + "]");
           if (dd) dd.textContent = value || "";
         }
         fact.classList.toggle("hidden", !value);
       }
-      setFact("host", active ? slot.hostname : "");
-      setFact("ssh", slot.state === "on" && slot.ssh ? "ssh " + slot.ssh : "");
-      setFact("address", slot.state === "on" ? (slot.address || "") : "");
       setFact("opened", slot.openedBy || "");
-      if (active && slot.startedAt) {
+      setFact("host", joined ? slot.hostname : "");
+      setFact("ssh", joined && slot.ssh ? "ssh " + slot.ssh : "");
+      if (joined && slot.startedAt) {
         const started = Date.parse(slot.startedAt);
-        setFact("elapsed", formatDuration(Date.now() - started));
         setFact("left", formatDuration(started + ${SESSION_DEADLINE_MINUTES} * 60 * 1000 - Date.now()));
+        setFact("elapsed", formatDuration(Date.now() - started));
       } else {
-        setFact("elapsed", "");
         setFact("left", "");
+        setFact("elapsed", "");
       }
-      if (slot.id === "linux") {
-        setFact("access", remembered.access_profile || "");
-      } else {
-        setFact("wsl", remembered.enable_wsl === "true" ? "on" : remembered.enable_wsl === "false" ? "off" : "");
-      }
-      setFact("session", remembered.session_profile || "");
+      paintOpts(card, slot.id, !active);
       const facts = card.querySelector(".facts");
       if (facts) {
         facts.classList.toggle("is-empty", !facts.querySelector(":scope > div:not(.hidden)"));
@@ -991,35 +1037,14 @@ export function renderPage(): string {
       startSlot = slot;
       dialogSubmit.className = "btn btn-primary";
       dialogSubmit.textContent = "Confirm";
-      const remembered = profiles[slot] || {};
+      dialogFields.innerHTML = "";
+      const chosen = profileFor(slot);
       if (slot === "linux") {
         dialogTitle.textContent = "Open Linux";
-        dialogHint.textContent = "Access Profile picks the entry path; Session Profile picks how deep the machine is provisioned.";
-        dialogFields.innerHTML =
-          '<label><span class="kicker">Access Profile</span>' +
-          '<select class="field" name="access_profile">' +
-          '<option value="mini"' + (remembered.access_profile !== "full" ? " selected" : "") + ">mini</option>" +
-          '<option value="full"' + (remembered.access_profile === "full" ? " selected" : "") + ">full</option>" +
-          "</select></label>" +
-          '<label><span class="kicker">Session Profile</span>' +
-          '<select class="field" name="session_profile">' +
-          '<option value="core"' + (remembered.session_profile === "core" ? " selected" : "") + ">core</option>" +
-          '<option value="developer"' + (remembered.session_profile !== "core" ? " selected" : "") + ">developer</option>" +
-          "</select></label>";
+        dialogHint.textContent = "Open with Access " + chosen.access_profile + " and Session " + chosen.session_profile + ". Access Profile picks the entry path; Session Profile picks how deep the machine is provisioned.";
       } else {
         dialogTitle.textContent = "Open Windows";
-        dialogHint.textContent = "Session Profile picks provision depth. Turn on WSL only if you need a Linux subsystem.";
-        dialogFields.innerHTML =
-          '<label><span class="kicker">Session Profile</span>' +
-          '<select class="field" name="session_profile">' +
-          '<option value="core"' + (remembered.session_profile === "core" ? " selected" : "") + ">core</option>" +
-          '<option value="developer"' + (remembered.session_profile !== "core" ? " selected" : "") + ">developer</option>" +
-          "</select></label>" +
-          '<label><span class="kicker">WSL</span>' +
-          '<select class="field" name="enable_wsl">' +
-          '<option value="false"' + (remembered.enable_wsl !== "true" ? " selected" : "") + ">off</option>" +
-          '<option value="true"' + (remembered.enable_wsl === "true" ? " selected" : "") + ">on</option>" +
-          "</select></label>";
+        dialogHint.textContent = "Open with Session " + chosen.session_profile + " and WSL " + (chosen.enable_wsl === "true" ? "on" : "off") + ". Session Profile picks provision depth. Turn on WSL only if you need a Linux subsystem.";
       }
       dialog.classList.remove("hidden");
     }
@@ -1050,6 +1075,20 @@ export function renderPage(): string {
     document.querySelectorAll("[data-slot-pick]").forEach(function (btn) {
       btn.addEventListener("click", function () { setSlot(btn.dataset.slotPick); });
     });
+    document.querySelectorAll("[data-access-pick], [data-session-pick], [data-wsl-pick]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        if (btn.disabled) return;
+        const card = btn.closest("[data-slot]");
+        const slot = card.dataset.slot;
+        const next = profileFor(slot);
+        if (btn.dataset.accessPick) next.access_profile = btn.dataset.accessPick;
+        if (btn.dataset.sessionPick) next.session_profile = btn.dataset.sessionPick;
+        if (btn.dataset.wslPick) next.enable_wsl = btn.dataset.wslPick;
+        profiles[slot] = next;
+        saveProfiles();
+        paintOpts(card, slot, true);
+      });
+    });
     document.querySelectorAll("[data-action]").forEach(function (button) {
       button.addEventListener("click", async function () {
         const slot = button.closest("[data-slot]").dataset.slot;
@@ -1079,9 +1118,7 @@ export function renderPage(): string {
         }
         return;
       }
-      const data = new FormData(startForm);
-      const body = {};
-      data.forEach(function (value, key) { body[key] = value; });
+      const body = profileFor(startSlot);
       try {
         const next = await api("/api/slots/" + startSlot + "/start", "POST", body);
         profiles[startSlot] = body;
