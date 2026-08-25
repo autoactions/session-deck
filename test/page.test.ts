@@ -14,6 +14,8 @@ describe("management page", () => {
     expect(response.headers.get("content-type")).toMatch(/text\/html/);
     const html = await response.text();
     expect(html).toContain('lang="en"');
+    expect(html).toContain("<title>Session Deck</title>");
+    expect(html).toContain("Session Deck");
     expect(html).toContain("viewport");
     expect(html).toContain('id="board-empty"');
     expect(html).toContain("No targets");
@@ -35,7 +37,7 @@ describe("management page", () => {
     expect(html).toContain('role="radiogroup" aria-label="Target"');
     expect(html).toContain("function targetsForProject");
     expect(html).toContain("function setProject");
-    expect(html).toContain("debug-session-project-targets");
+    expect(html).toContain("session-deck-project-targets");
     expect(html).not.toContain("const picks = CATALOG.map");
     expect(html).toContain("Enter");
     expect(html).toContain("Lock");

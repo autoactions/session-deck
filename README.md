@@ -1,4 +1,4 @@
-# Debug Session Control
+# Session Deck
 
 Cloudflare Worker that opens and closes GitHub-hosted session Targets. Attach a session project by naming its GitHub repository here; the Catalog in this repo lists what can be started. The page and API are the switch; GitHub-hosted jobs are still the machines.
 

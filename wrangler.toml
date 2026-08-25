@@ -1,4 +1,4 @@
-name = "debug-session-control"
+name = "session-deck"
 main = "src/index.ts"
 compatibility_date = "2026-08-15"
 workers_dev = true

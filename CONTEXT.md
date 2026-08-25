@@ -1,4 +1,4 @@
-# Session Control Plane
+# Session Deck
 
 Control plane for opening and closing time-bounded GitHub-hosted sessions. The sessions themselves live in other repos; this context names the objects that plane talks about.
 

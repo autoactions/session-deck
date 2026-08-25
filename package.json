@@ -1,5 +1,5 @@
 {
-  "name": "debug-session-control",
+  "name": "session-deck",
   "private": true,
   "type": "module",
   "scripts": {

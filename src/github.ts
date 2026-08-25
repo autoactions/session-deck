@@ -210,7 +210,7 @@ function githubHttp(config: GitHubActionsConfig) {
     const headers = new Headers(init.headers);
     headers.set("Authorization", `Bearer ${config.token}`);
     if (!headers.has("Accept")) headers.set("Accept", "application/vnd.github+json");
-    headers.set("User-Agent", "debug-session-control");
+    headers.set("User-Agent", "session-deck");
     if (init.body) headers.set("Content-Type", "application/json");
     return fetchImpl(url, { ...init, headers });
   }
@@ -226,4 +226,3 @@ function githubHttp(config: GitHubActionsConfig) {
 
   return { authed, githubFetch };
 }
-

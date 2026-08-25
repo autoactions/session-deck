@@ -24,7 +24,7 @@ export function renderPage(repos: string[] = []): string {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sessions</title>
+  <title>Session Deck</title>
   <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -611,7 +611,7 @@ export function renderPage(repos: string[] = []): string {
     <div class="gate-stack">
       ${MARK.replace('class="mark"', 'class="mark gate-mark"')}
       <p class="kicker gate-kicker">Control Plane</p>
-      <h1 class="gate-title">Sessions</h1>
+      <h1 class="gate-title">Session Deck</h1>
       <label class="kicker gate-label" for="token">Admin Token</label>
       <input id="token" class="field" type="password" autocomplete="off" placeholder="Paste the admin secret">
       <button class="btn btn-primary gate-enter" id="enter" type="button">Enter</button>
@@ -630,7 +630,7 @@ export function renderPage(repos: string[] = []): string {
   </div>
   <div id="app" class="hidden">
     <header>
-      <div class="brand">${MARK.replace('class="mark"', 'class="mark brand-mark"')} Sessions</div>
+      <div class="brand">${MARK.replace('class="mark"', 'class="mark brand-mark"')} Session Deck</div>
       <nav class="tabs" aria-label="Views">
         <button class="tab" type="button" data-view="slots" aria-selected="true">Sessions</button>
         <button class="tab" type="button" data-view="journal" aria-selected="false">Journal</button>
@@ -721,11 +721,11 @@ export function renderPage(repos: string[] = []): string {
   </div>
   <div id="toast" class="toast hidden" role="status"></div>
   <script>
-    const STORAGE = "debug-session-admin-token";
-    const PROFILE_KEY = "debug-session-profiles";
-    const JOURNAL_KEY = "debug-session-journal";
-    const TARGET_KEY = "debug-session-target";
-    const PROJECT_TARGETS_KEY = "debug-session-project-targets";
+    const STORAGE = "session-deck-admin-token";
+    const PROFILE_KEY = "session-deck-profiles";
+    const JOURNAL_KEY = "session-deck-journal";
+    const TARGET_KEY = "session-deck-target";
+    const PROJECT_TARGETS_KEY = "session-deck-project-targets";
     let CATALOG = [];
     const tokenInput = document.getElementById("token");
     const gateError = document.getElementById("gate-error");
