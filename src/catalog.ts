@@ -15,7 +15,7 @@ export type Target = {
   displayTitle?: string;
   defaultInputs: DispatchInputs;
   inputs: InputSpec[];
-  ready: { kind: "tailscale"; hostname: string } | { kind: "github-output" };
+  ready: { kind: "github-run" } | { kind: "github-output" };
   onCaption: string;
 };
 

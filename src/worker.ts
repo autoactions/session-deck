@@ -5,8 +5,6 @@ import type { TargetIntents } from "./intents.ts";
 import { memoryTargetIntents } from "./intents.ts";
 import { MARK_SVG, renderPage } from "./page.ts";
 import { isActive, listTargets, readyStatus, viewTarget } from "./targets.ts";
-import type { TailscaleNet } from "./tailscale.ts";
-import { unknownTailscale } from "./tailscale.ts";
 
 export type WorkerDeps = {
   adminToken: string;
@@ -14,18 +12,16 @@ export type WorkerDeps = {
   catalog?: Target[];
   repos?: string[];
   intents?: TargetIntents;
-  tailscale?: TailscaleNet;
 };
 
 export function createWorker(deps: WorkerDeps): typeof fetch {
   const catalog = deps.catalog ?? [];
   const repos = deps.repos ?? [...new Set(catalog.map((target) => target.repo))];
   const intents = deps.intents ?? memoryTargetIntents();
-  const tailscale = deps.tailscale ?? unknownTailscale();
   return async (input, init) => {
     const request = input instanceof Request ? input : new Request(input, init);
     try {
-      return await route(request, { ...deps, catalog, repos, tailscale }, intents);
+      return await route(request, { ...deps, catalog, repos }, intents);
     } catch (error) {
       const message = error instanceof Error ? error.message : "upstream error";
       return json({ error: message }, 502);
@@ -35,7 +31,7 @@ export function createWorker(deps: WorkerDeps): typeof fetch {
 
 async function route(
   request: Request,
-  deps: WorkerDeps & { catalog: Target[]; repos: string[]; tailscale: TailscaleNet },
+  deps: WorkerDeps & { catalog: Target[]; repos: string[] },
   intents: TargetIntents,
 ): Promise<Response> {
   const url = new URL(request.url);
@@ -59,7 +55,7 @@ async function route(
   }
 
   if (request.method === "GET" && url.pathname === "/api/targets") {
-    return json({ targets: await listTargets(deps.catalog, deps.github, intents, deps.tailscale) });
+    return json({ targets: await listTargets(deps.catalog, deps.github, intents) });
   }
 
   const targetMatch = matchTargetPath(url.pathname);
@@ -73,7 +69,7 @@ async function route(
 
     async function shown() {
       const run = await deps.github.latestRun(target.id);
-      return viewTarget(target, run, intents, await readyStatus(target, run, deps.github, deps.tailscale));
+      return viewTarget(target, run, intents, await readyStatus(target, run, deps.github));
     }
 
     if (request.method === "GET" && !action) {
@@ -101,13 +97,13 @@ async function route(
         target,
         run,
         intents,
-        await readyStatus(target, run, deps.github, deps.tailscale),
+        await readyStatus(target, run, deps.github),
       );
       if (!isActive(current.state) || !run) return json(current);
       await deps.github.cancel(target.id, run.id);
       intents.markStopping(run.id);
       return json(
-        viewTarget(target, run, intents, await readyStatus(target, run, deps.github, deps.tailscale)),
+        viewTarget(target, run, intents, await readyStatus(target, run, deps.github)),
       );
     }
   }

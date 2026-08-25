@@ -43,14 +43,14 @@ on:
 `;
 
 describe("targetsFromWorkflow", () => {
-  it("maps a Tailscale workflow to one target with remaining inputs", () => {
+  it("maps a Tailscale workflow to a GitHub run observer", () => {
     expect(targetsFromWorkflow("autoactions/debug-session", ".github/workflows/linux.yml", linux)).toEqual([
       expect.objectContaining({
         id: "debug-session/linux",
         label: "Linux",
         repo: "autoactions/debug-session",
         workflow: "linux.yml",
-        ready: { kind: "tailscale", hostname: "debug-session-linux" },
+        ready: { kind: "github-run" },
         defaultInputs: { access_profile: "mini", session_profile: "developer" },
       }),
     ]);

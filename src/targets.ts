@@ -2,7 +2,6 @@ import type { InputSpec, Target } from "./catalog.ts";
 import type { GitHubActions, WorkflowRun } from "./github.ts";
 import type { TargetIntents } from "./intents.ts";
 import { parseLocatorBlock, type LocatorFact } from "./locators.ts";
-import type { Join, TailscaleNet } from "./tailscale.ts";
 
 export type TargetState = "off" | "starting" | "on" | "stopping" | "failed";
 
@@ -22,19 +21,19 @@ export type TargetView = {
 };
 
 export type Observed = {
-  join: Join;
+  ready: boolean;
   facts: LocatorFact[];
 };
 
-const UNKNOWN: Observed = { join: "unknown", facts: [] };
+const READY: Observed = { ready: true, facts: [] };
 
-export function stateFromRun(run: WorkflowRun | null, join: Join = "unknown"): TargetState {
+export function stateFromRun(run: WorkflowRun | null, ready = true): TargetState {
   if (!run) return "off";
   if (run.status === "queued" || run.status === "waiting" || run.status === "requested" || run.status === "pending") {
     return "starting";
   }
   if (run.status !== "completed") {
-    return join === "absent" ? "starting" : "on";
+    return ready ? "on" : "starting";
   }
   if (run.conclusion === "failure" || run.conclusion === "timed_out" || run.conclusion === "startup_failure") {
     return "failed";
@@ -46,9 +45,9 @@ export function viewTarget(
   target: Target,
   run: WorkflowRun | null,
   intents?: TargetIntents,
-  observed: Observed = UNKNOWN,
+  observed: Observed = READY,
 ): TargetView {
-  let state = stateFromRun(run, observed.join);
+  let state = stateFromRun(run, observed.ready);
   let runUrl = run?.htmlUrl ?? null;
   let startedAt = run?.startedAt ?? null;
   let openedBy = run?.openedBy ?? null;
@@ -101,29 +100,26 @@ export async function readyStatus(
   target: Target,
   run: WorkflowRun | null,
   github: GitHubActions,
-  tailscale?: TailscaleNet,
 ): Promise<Observed> {
   const facts = await locatorsFrom(target, run, github);
-  if (target.ready.kind === "tailscale") {
-    const join = tailscale ? (await tailscale.status(target.ready.hostname)).join : "unknown";
-    return { join, facts };
+  if (target.ready.kind === "github-run") {
+    return { ready: true, facts };
   }
   if (!run || isPending(run) || run.status === "completed") {
-    return { join: "absent", facts: [] };
+    return { ready: false, facts: [] };
   }
-  return { join: facts.length > 0 ? "present" : "absent", facts };
+  return { ready: facts.length > 0, facts };
 }
 
 export async function listTargets(
   catalog: Target[],
   github: GitHubActions,
   intents?: TargetIntents,
-  tailscale?: TailscaleNet,
 ): Promise<TargetView[]> {
   return Promise.all(
     catalog.map(async (target) => {
       const run = await github.latestRun(target.id);
-      return viewTarget(target, run, intents, await readyStatus(target, run, github, tailscale));
+      return viewTarget(target, run, intents, await readyStatus(target, run, github));
     }),
   );
 }

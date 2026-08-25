@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createWorker } from "../src/worker.ts";
 import { FakeGitHub } from "./fake-github.ts";
-import { FakeTailscale } from "./fake-tailscale.ts";
 import { DEBUG_CATALOG, SERVICE_CATALOG, linuxTarget, windowsTarget } from "./fixtures.ts";
 
 const linuxOff = {
@@ -32,8 +31,8 @@ const windowsOff = {
 
 const adminToken = "test-admin-token";
 
-function worker(github = new FakeGitHub(), tailscale?: FakeTailscale, catalog = DEBUG_CATALOG) {
-  return { github, fetch: createWorker({ adminToken, github, tailscale, catalog }) };
+function worker(github = new FakeGitHub(), catalog = DEBUG_CATALOG) {
+  return { github, fetch: createWorker({ adminToken, github, catalog }) };
 }
 
 function api(
@@ -255,8 +254,8 @@ describe("opening and closing targets", () => {
   });
 });
 
-describe("Join", () => {
-  it("keeps an in-progress run starting until the reserved hostname is online", async () => {
+describe("GitHub run observer", () => {
+  it("reports an in-progress debug session on without Locator facts", async () => {
     const github = new FakeGitHub();
     github.runs.linux = {
       id: 42,
@@ -266,25 +265,7 @@ describe("Join", () => {
       startedAt: "2026-08-18T10:00:00Z",
       openedBy: "octo",
     };
-    const tailscale = new FakeTailscale();
-    const { fetch } = worker(github, tailscale);
-    const response = await api(fetch, "/api/targets/linux");
-    expect(await response.json()).toMatchObject({ id: "linux", state: "starting", facts: [] });
-  });
-
-  it("reports on without facts when the hostname is online but no Locator Block exists yet", async () => {
-    const github = new FakeGitHub();
-    github.runs.linux = {
-      id: 42,
-      status: "in_progress",
-      conclusion: null,
-      htmlUrl: "https://github.com/autoactions/debug-session/actions/runs/42",
-      startedAt: "2026-08-18T10:00:00Z",
-      openedBy: "octo",
-    };
-    const tailscale = new FakeTailscale();
-    tailscale.online["debug-session-linux"] = "100.64.0.10";
-    const { fetch } = worker(github, tailscale);
+    const { fetch } = worker(github);
     const response = await api(fetch, "/api/targets/linux");
     expect(await response.json()).toMatchObject({
       id: "linux",
@@ -298,7 +279,7 @@ describe("Join", () => {
     });
   });
 
-  it("shows Locator Block facts once the hostname is online", async () => {
+  it("shows Locator Block facts when the debug session publishes them", async () => {
     const github = new FakeGitHub();
     github.runs.linux = {
       id: 42,
@@ -309,9 +290,7 @@ describe("Join", () => {
       openedBy: "octo",
     };
     github.outputs[42] = "## Locators\n- SSH: runner@100.64.0.10\n- RDP: 100.64.0.10:3389\n";
-    const tailscale = new FakeTailscale();
-    tailscale.online["debug-session-linux"] = "100.64.0.10";
-    const { fetch } = worker(github, tailscale);
+    const { fetch } = worker(github);
     const response = await api(fetch, "/api/targets/linux");
     expect(await response.json()).toMatchObject({
       id: "linux",
@@ -323,7 +302,7 @@ describe("Join", () => {
     });
   });
 
-  it("stays starting while queued even if a leftover device is still online", async () => {
+  it("stays starting while the GitHub run is queued", async () => {
     const github = new FakeGitHub();
     github.runs.linux = {
       id: 3,
@@ -333,54 +312,22 @@ describe("Join", () => {
       startedAt: null,
       openedBy: "octo",
     };
-    const tailscale = new FakeTailscale();
-    tailscale.online["debug-session-linux"] = "100.64.0.10";
-    const { fetch } = worker(github, tailscale);
+    const { fetch } = worker(github);
     const response = await api(fetch, "/api/targets/linux");
     expect(await response.json()).toMatchObject({ id: "linux", state: "starting", facts: [] });
-  });
-
-  it("stays starting after open when a leftover device is still online", async () => {
-    const github = {
-      latestRun: async () => null,
-      dispatch: async () => {},
-      cancel: async () => {},
-    };
-    const tailscale = new FakeTailscale();
-    tailscale.online["debug-session-linux"] = "100.64.0.10";
-    const fetchImpl = createWorker({ adminToken, github, tailscale, catalog: DEBUG_CATALOG });
-    const opened = await api(fetchImpl, "/api/targets/linux/start", { method: "POST" });
-    expect(await opened.json()).toMatchObject({ id: "linux", state: "starting", facts: [] });
-  });
-
-  it("still reports stopping while the hostname is online", async () => {
-    const github = new FakeGitHub();
-    github.runs.windows = {
-      id: 9,
-      status: "in_progress",
-      conclusion: null,
-      htmlUrl: "https://github.com/autoactions/debug-session/actions/runs/9",
-      startedAt: "2026-08-18T10:00:00Z",
-      openedBy: "octo",
-    };
-    const tailscale = new FakeTailscale();
-    tailscale.online["debug-session-windows"] = "100.64.0.11";
-    const { fetch } = worker(github, tailscale);
-    const closed = await api(fetch, "/api/targets/windows/stop", { method: "POST" });
-    expect(await closed.json()).toMatchObject({ id: "windows", state: "stopping", facts: [] });
   });
 });
 
 describe("temporary service targets", () => {
   it("lists chrome, motrix, and openlist", async () => {
-    const { fetch } = worker(new FakeGitHub(), undefined, SERVICE_CATALOG);
+    const { fetch } = worker(new FakeGitHub(), SERVICE_CATALOG);
     const response = await api(fetch, "/api/targets");
     const body = (await response.json()) as { targets: { id: string; state: string }[] };
     expect(body.targets.map((target) => target.id)).toEqual(["chrome", "motrix", "openlist"]);
   });
 
   it("dispatches chrome with service=chrome", async () => {
-    const { fetch, github } = worker(new FakeGitHub(), undefined, SERVICE_CATALOG);
+    const { fetch, github } = worker(new FakeGitHub(), SERVICE_CATALOG);
     await api(fetch, "/api/targets/chrome/start", { method: "POST" });
     expect(github.lastInputs.chrome).toEqual({ service: "chrome" });
   });
@@ -395,7 +342,7 @@ describe("temporary service targets", () => {
       startedAt: "2026-08-25T10:00:00Z",
       openedBy: "octo",
     };
-    const { fetch } = worker(github, undefined, SERVICE_CATALOG);
+    const { fetch } = worker(github, SERVICE_CATALOG);
     const response = await api(fetch, "/api/targets/chrome");
     expect(await response.json()).toMatchObject({ id: "chrome", state: "starting", facts: [] });
   });
@@ -411,7 +358,7 @@ describe("temporary service targets", () => {
       openedBy: "octo",
     };
     github.outputs[15] = "## Locators\n- Session Address: https://session-test.trycloudflare.com\n";
-    const { fetch } = worker(github, undefined, SERVICE_CATALOG);
+    const { fetch } = worker(github, SERVICE_CATALOG);
     const response = await api(fetch, "/api/targets/chrome");
     expect(await response.json()).toMatchObject({
       id: "chrome",
@@ -435,7 +382,7 @@ describe("temporary service targets", () => {
       startedAt: "2026-08-25T10:00:00Z",
       openedBy: "octo",
     };
-    const { fetch } = worker(github, undefined, SERVICE_CATALOG);
+    const { fetch } = worker(github, SERVICE_CATALOG);
     const opened = await api(fetch, "/api/targets/openlist/start", { method: "POST" });
     expect(github.lastInputs.openlist).toBeNull();
     expect(await opened.json()).toMatchObject({ id: "openlist", state: "starting" });

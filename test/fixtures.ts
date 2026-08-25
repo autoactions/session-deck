@@ -1,6 +1,6 @@
 import type { Target } from "../src/catalog.ts";
 
-const TAILNET_ON = "on = reserved hostname is on the tailnet";
+const RUN_ON = "on = GitHub run is in progress";
 const ADDRESS_ON = "on = Locator Block is published";
 
 export const linuxTarget: Target = {
@@ -13,8 +13,8 @@ export const linuxTarget: Target = {
     { name: "access_profile", type: "choice", options: ["mini", "full"], default: "mini" },
     { name: "session_profile", type: "choice", options: ["core", "developer"], default: "developer" },
   ],
-  ready: { kind: "tailscale", hostname: "debug-session-linux" },
-  onCaption: TAILNET_ON,
+  ready: { kind: "github-run" },
+  onCaption: RUN_ON,
 };
 
 export const windowsTarget: Target = {
@@ -27,8 +27,8 @@ export const windowsTarget: Target = {
     { name: "session_profile", type: "choice", options: ["core", "developer"], default: "developer" },
     { name: "enable_wsl", type: "boolean", default: "false" },
   ],
-  ready: { kind: "tailscale", hostname: "debug-session-windows" },
-  onCaption: TAILNET_ON,
+  ready: { kind: "github-run" },
+  onCaption: RUN_ON,
 };
 
 export const chromeTarget: Target = {

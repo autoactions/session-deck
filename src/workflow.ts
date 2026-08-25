@@ -1,7 +1,7 @@
 import { parse } from "yaml";
 import type { DispatchInputs, InputSpec, Target } from "./catalog.ts";
 
-const TAILNET_ON = "on = reserved hostname is on the tailnet";
+const RUN_ON = "on = GitHub run is in progress";
 const ADDRESS_ON = "on = Locator Block is published";
 const RUN_NAME = /^([^:]+):\$\{\{\s*inputs\.([A-Za-z_][\w-]*)\s*\}\}$/;
 const HOSTNAME = /^\s*TAILSCALE_HOSTNAME:\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*$/m;
@@ -19,11 +19,11 @@ export function targetsFromWorkflow(repo: string, path: string, yamlText: string
   const filename = path.split("/").pop() || path;
   const stem = filename.replace(/\.(ya?ml)$/i, "");
   const repoName = repo.split("/")[1] || repo;
-  const hostname = literalHostname(yamlText);
-  const ready = hostname
-    ? ({ kind: "tailscale", hostname } as const)
+  const hasHostname = literalHostname(yamlText) !== null;
+  const ready = hasHostname
+    ? ({ kind: "github-run" } as const)
     : ({ kind: "github-output" } as const);
-  const onCaption = hostname ? TAILNET_ON : ADDRESS_ON;
+  const onCaption = hasHostname ? RUN_ON : ADDRESS_ON;
   const inputs = inputSpecs(dispatch);
   const record = doc && typeof doc === "object" ? (doc as Record<string, unknown>) : {};
   const runName = typeof record["run-name"] === "string" ? record["run-name"].trim() : "";

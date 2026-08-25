@@ -1,7 +1,6 @@
 import { githubRef, githubTargets, parseRepoList } from "./catalog.ts";
 import { discoverTargets } from "./discover.ts";
 import { combineGitHub, createGitHubActions, createGitHubRepoAccess } from "./github.ts";
-import { createTailscale } from "./tailscale.ts";
 import { createWorker } from "./worker.ts";
 
 export type Env = {
@@ -9,8 +8,6 @@ export type Env = {
   GITHUB_TOKEN: string;
   GITHUB_REPO: string;
   GITHUB_REF?: string;
-  TAILSCALE_OAUTH_CLIENT_ID?: string;
-  TAILSCALE_OAUTH_CLIENT_SECRET?: string;
 };
 
 export default {
@@ -49,13 +46,6 @@ export default {
       catalog,
       repos,
       github: combineGitHub(clients),
-      tailscale:
-        env.TAILSCALE_OAUTH_CLIENT_ID && env.TAILSCALE_OAUTH_CLIENT_SECRET
-          ? createTailscale({
-              clientId: env.TAILSCALE_OAUTH_CLIENT_ID,
-              clientSecret: env.TAILSCALE_OAUTH_CLIENT_SECRET,
-            })
-          : undefined,
     })(request);
   },
 };

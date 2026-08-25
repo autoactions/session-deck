@@ -21,7 +21,7 @@ The `## Locators` list a session job publishes when its core services are up. Th
 _Avoid_: manifest, plugin output, ready callback, address field
 
 **Observer**:
-How this plane learns that a Locator is live without a protocol to the machine. Tailscale Join is one Observer; GitHub job output is another.
+The GitHub signal this plane uses to derive a Target's state without a protocol to the machine: run state for a Debug Session, or job output for a Temporary Service Session.
 _Avoid_: callback, webhook, ready ping
 
 **Debug Session**:
@@ -37,12 +37,8 @@ The single shared secret that authorizes both the management page and the HTTP A
 _Avoid_: API key, password, session token
 
 **Target State**:
-What a Target looks like from the control plane: `off`, `starting`, `on`, `stopping`, `failed`. `on` means the Target's Observer reports a live Locator while the GitHub run is live.
+What a Target looks like from the control plane: `off`, `starting`, `on`, `stopping`, `failed`. `on` means a Debug Session's GitHub run is live, or a Temporary Service Session's Observer reports a live Locator.
 _Avoid_: ready, healthy, connected, Slot State (that name is Slot-only)
-
-**Join**:
-Whether a Debug Session's reserved Tailscale hostname is currently online on the tailnet. Join is an Observer result, not a sixth state, and not an SSH handshake.
-_Avoid_: ready, healthy, connected, reachability
 
 **Access Profile**:
 Linux-only entry shape for a Debug Session: `mini` is SSH, `full` is SSH plus RDP.
