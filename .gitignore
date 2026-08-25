@@ -10,6 +10,7 @@ dist/
 .mf/
 
 # Secrets — keep the committed examples
+.dev
 .dev.vars
 .env
 .env.*
