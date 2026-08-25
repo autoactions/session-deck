@@ -14,5 +14,8 @@
     "typescript": "^7.0.2",
     "vitest": "^4.1.10",
     "wrangler": "^4.123.0"
+  },
+  "dependencies": {
+    "yaml": "^2.9.0"
   }
 }

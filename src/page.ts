@@ -1,4 +1,6 @@
-import { SESSION_DEADLINE_MINUTES } from "./slots.ts";
+import { SESSION_DEADLINE_MINUTES } from "./targets.ts";
+
+
 
 export const MARK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
   <circle cx="16" cy="16" r="13" stroke="#f2f2f0" stroke-width="1"/>
@@ -11,13 +13,18 @@ const MARK = `<svg class="mark" viewBox="0 0 32 32" aria-hidden="true" focusable
   <path fill="currentColor" fill-rule="evenodd" d="M16 21.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zm0-3.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
 </svg>`;
 
-export function renderPage(): string {
+function uniqueRepos(repos: string[]): Array<{ href: string; label: string }> {
+  return repos.map((repo) => ({ href: `https://github.com/${repo}`, label: repo }));
+}
+
+export function renderPage(repos: string[] = []): string {
+  const listed = uniqueRepos(repos);
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Debug Session</title>
+  <title>Sessions</title>
   <link rel="icon" href="/assets/mark.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -269,24 +276,58 @@ export function renderPage(): string {
       min-height: 0;
       overflow: hidden;
     }
+    .target-nav {
+      width: min(640px, 100%);
+      padding: 32px 40px 0;
+      flex: none;
+    }
+    .project-picker {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .project-picker label { color: var(--faint); flex: none; }
+    .project-select {
+      width: min(360px, 100%);
+      min-height: 36px;
+      padding: 0 34px 0 12px;
+      border: 1px solid var(--line-strong);
+      background-color: var(--surface);
+      background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+      background-position: calc(100% - 15px) 50%, calc(100% - 10px) 50%;
+      background-size: 5px 5px, 5px 5px;
+      background-repeat: no-repeat;
+      appearance: none;
+      cursor: pointer;
+    }
+    .target-scroll {
+      max-width: 100%;
+      margin-top: 16px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: thin;
+      scrollbar-color: var(--line-strong) transparent;
+    }
+    .target-seg {
+      flex-wrap: nowrap;
+      max-width: none;
+    }
+    .target-seg .seg-btn { white-space: nowrap; }
     .machine {
       flex: 1;
       display: flex;
       flex-direction: column;
       width: min(640px, 100%);
-      padding: 36px 40px 28px;
+      padding: 20px 40px 28px;
       min-height: 0;
       overflow: hidden;
     }
-    .host-row {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
     .seg {
       display: inline-flex;
+      flex-wrap: wrap;
       border: 1px solid var(--line-strong);
       flex: none;
+      max-width: 100%;
     }
     .seg-btn {
       display: inline-flex;
@@ -548,7 +589,10 @@ export function renderPage(): string {
         margin-right: 0;
         border-top: 1px solid var(--line);
       }
-      .machine { padding: 24px 20px 20px; }
+      .target-nav { padding: 24px 20px 0; }
+      .project-picker { align-items: flex-start; flex-direction: column; gap: 8px; }
+      .project-select { width: 100%; }
+      .machine { padding: 20px 20px; }
       .panel { width: min(1080px, 100% - 40px); }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -567,7 +611,7 @@ export function renderPage(): string {
     <div class="gate-stack">
       ${MARK.replace('class="mark"', 'class="mark gate-mark"')}
       <p class="kicker gate-kicker">Control Plane</p>
-      <h1 class="gate-title">Debug Session</h1>
+      <h1 class="gate-title">Sessions</h1>
       <label class="kicker gate-label" for="token">Admin Token</label>
       <input id="token" class="field" type="password" autocomplete="off" placeholder="Paste the admin secret">
       <button class="btn btn-primary gate-enter" id="enter" type="button">Enter</button>
@@ -575,20 +619,20 @@ export function renderPage(): string {
     </div>
     <dl class="gate-foot">
       <div>
-        <dt>Repo</dt>
-        <dd><a href="https://github.com/autoactions/debug-session" target="_blank" rel="noreferrer">autoactions/debug-session</a></dd>
+        <dt>Repos</dt>
+        <dd>${listed.map((repo) => `<a href="${repo.href}" target="_blank" rel="noreferrer">${repo.label}</a>`).join("<br>") || "—"}</dd>
       </div>
       <div>
         <dt>API</dt>
-        <dd>Bearer · GET /api/slots</dd>
+        <dd>Bearer · GET /api/targets</dd>
       </div>
     </dl>
   </div>
   <div id="app" class="hidden">
     <header>
-      <div class="brand">${MARK.replace('class="mark"', 'class="mark brand-mark"')} Debug Session</div>
+      <div class="brand">${MARK.replace('class="mark"', 'class="mark brand-mark"')} Sessions</div>
       <nav class="tabs" aria-label="Views">
-        <button class="tab" type="button" data-view="slots" aria-selected="true">Slots</button>
+        <button class="tab" type="button" data-view="slots" aria-selected="true">Sessions</button>
         <button class="tab" type="button" data-view="journal" aria-selected="false">Journal</button>
         <button class="tab" type="button" data-view="api" aria-selected="false">API</button>
       </nav>
@@ -596,138 +640,16 @@ export function renderPage(): string {
     </header>
     <main class="stage">
       <section id="view-slots" class="board">
-        <article class="machine" data-slot="linux">
-          <div class="host-row">
-            <div class="seg" role="radiogroup" aria-label="Slot">
-              <button type="button" class="seg-btn" data-slot-pick="linux" role="radio" aria-checked="true">Linux</button>
-              <button type="button" class="seg-btn" data-slot-pick="windows" role="radio" aria-checked="false">Windows</button>
-            </div>
+        <div class="target-nav hidden" id="target-nav">
+          <div class="project-picker">
+            <label class="kicker" for="project-select">Project</label>
+            <select class="project-select" id="project-select" aria-label="Project"></select>
           </div>
-          <div class="opts">
-            <div class="opt">
-              <span class="kicker">Session</span>
-              <div class="seg" role="radiogroup" aria-label="Session Profile">
-                <button type="button" class="seg-btn" data-session-pick="core" role="radio" aria-checked="false">core</button>
-                <button type="button" class="seg-btn" data-session-pick="developer" role="radio" aria-checked="true">developer</button>
-              </div>
-            </div>
-            <div class="opt">
-              <span class="kicker">Access</span>
-              <div class="seg" role="radiogroup" aria-label="Access Profile">
-                <button type="button" class="seg-btn" data-access-pick="mini" role="radio" aria-checked="true">mini</button>
-                <button type="button" class="seg-btn" data-access-pick="full" role="radio" aria-checked="false">full</button>
-              </div>
-            </div>
+          <div class="target-scroll">
+            <div class="seg target-seg" id="target-picks" role="radiogroup" aria-label="Target"></div>
           </div>
-          <div class="status">
-            <div class="word is-off" data-word>off</div>
-            <span class="led" data-led></span>
-          </div>
-          <div class="channels hidden" data-channels>
-            <span class="channel hidden" data-ssh-channel>SSH <strong>open</strong></span>
-            <span class="channel hidden" data-rdp-channel>RDP <strong>open</strong></span>
-          </div>
-          <dl class="facts is-empty">
-            <div class="hidden" data-opened-fact>
-              <dt>For</dt>
-              <dd data-opened></dd>
-            </div>
-            <div class="hidden" data-run-fact>
-              <dt data-run-label>Last run</dt>
-              <dd data-run>—</dd>
-            </div>
-            <div class="hidden" data-host-fact>
-              <dt>Host</dt>
-              <dd data-host></dd>
-            </div>
-            <div class="hidden" data-ssh-fact>
-              <dt>SSH</dt>
-              <dd><button class="btn btn-quiet fact-copy" type="button" data-copy></button></dd>
-            </div>
-            <div class="hidden" data-rdp-fact>
-              <dt>RDP</dt>
-              <dd><button class="btn btn-quiet fact-copy" type="button" data-copy></button></dd>
-            </div>
-            <div class="hidden" data-left-fact>
-              <dt>Left</dt>
-              <dd data-left></dd>
-            </div>
-            <div class="hidden" data-elapsed-fact>
-              <dt>Elapsed</dt>
-              <dd data-elapsed></dd>
-            </div>
-          </dl>
-          <div class="actions">
-            <button class="btn btn-primary" data-action="start" type="button">Open</button>
-            <button class="btn btn-ghost" data-action="stop" type="button" disabled>Close</button>
-          </div>
-        </article>
-        <article class="machine hidden" data-slot="windows">
-          <div class="host-row">
-            <div class="seg" role="radiogroup" aria-label="Slot">
-              <button type="button" class="seg-btn" data-slot-pick="linux" role="radio" aria-checked="false">Linux</button>
-              <button type="button" class="seg-btn" data-slot-pick="windows" role="radio" aria-checked="true">Windows</button>
-            </div>
-          </div>
-          <div class="opts">
-            <div class="opt">
-              <span class="kicker">Session</span>
-              <div class="seg" role="radiogroup" aria-label="Session Profile">
-                <button type="button" class="seg-btn" data-session-pick="core" role="radio" aria-checked="false">core</button>
-                <button type="button" class="seg-btn" data-session-pick="developer" role="radio" aria-checked="true">developer</button>
-              </div>
-            </div>
-            <div class="opt">
-              <span class="kicker">WSL</span>
-              <div class="seg" role="radiogroup" aria-label="WSL">
-                <button type="button" class="seg-btn" data-wsl-pick="false" role="radio" aria-checked="true">off</button>
-                <button type="button" class="seg-btn" data-wsl-pick="true" role="radio" aria-checked="false">on</button>
-              </div>
-            </div>
-          </div>
-          <div class="status">
-            <div class="word is-off" data-word>off</div>
-            <span class="led" data-led></span>
-          </div>
-          <div class="channels hidden" data-channels>
-            <span class="channel hidden" data-ssh-channel>SSH <strong>open</strong></span>
-            <span class="channel hidden" data-rdp-channel>RDP <strong>open</strong></span>
-          </div>
-          <dl class="facts is-empty">
-            <div class="hidden" data-opened-fact>
-              <dt>For</dt>
-              <dd data-opened></dd>
-            </div>
-            <div class="hidden" data-run-fact>
-              <dt data-run-label>Last run</dt>
-              <dd data-run>—</dd>
-            </div>
-            <div class="hidden" data-host-fact>
-              <dt>Host</dt>
-              <dd data-host></dd>
-            </div>
-            <div class="hidden" data-ssh-fact>
-              <dt>SSH</dt>
-              <dd><button class="btn btn-quiet fact-copy" type="button" data-copy></button></dd>
-            </div>
-            <div class="hidden" data-rdp-fact>
-              <dt>RDP</dt>
-              <dd><button class="btn btn-quiet fact-copy" type="button" data-copy></button></dd>
-            </div>
-            <div class="hidden" data-left-fact>
-              <dt>Left</dt>
-              <dd data-left></dd>
-            </div>
-            <div class="hidden" data-elapsed-fact>
-              <dt>Elapsed</dt>
-              <dd data-elapsed></dd>
-            </div>
-          </dl>
-          <div class="actions">
-            <button class="btn btn-primary" data-action="start" type="button">Open</button>
-            <button class="btn btn-ghost" data-action="stop" type="button" disabled>Close</button>
-          </div>
-        </article>
+        </div>
+        <p class="empty" id="board-empty">No targets</p>
       </section>
       <section id="view-journal" class="panel hidden">
         <h2>Journal</h2>
@@ -737,7 +659,7 @@ export function renderPage(): string {
           <thead>
             <tr>
               <th>Time</th>
-              <th>Slot</th>
+              <th>Target</th>
               <th>Intent</th>
               <th>Detail</th>
             </tr>
@@ -752,39 +674,39 @@ export function renderPage(): string {
           <div class="route">
             <div class="method">GET</div>
             <div>
-              <div class="path">/api/slots</div>
-              <p class="blurb">List both slots with slot state, hostname, and run link.</p>
+              <div class="path">/api/targets</div>
+              <p class="blurb">List catalog targets with state, run link, and locators after ready.</p>
             </div>
-            <button class="btn btn-quiet" type="button" data-copy="/api/slots">Copy</button>
+            <button class="btn btn-quiet" type="button" data-copy="/api/targets">Copy</button>
           </div>
           <div class="route">
             <div class="method">GET</div>
             <div>
-              <div class="path">/api/slots/{linux|windows}</div>
-              <p class="blurb">Read one slot. state is off / starting / on / stopping / failed. on means the reserved hostname is on the tailnet.</p>
+              <div class="path">/api/targets/{id}</div>
+              <p class="blurb">Read one target. state is off / starting / on / stopping / failed. on means the observer found a live Locator. facts are Locator Block rows.</p>
             </div>
-            <button class="btn btn-quiet" type="button" data-copy="/api/slots/linux">Copy</button>
+            <button class="btn btn-quiet" type="button" data-copy="/api/targets/{id}">Copy</button>
           </div>
           <div class="route">
             <div class="method">POST</div>
             <div>
-              <div class="path">/api/slots/{linux|windows}/start</div>
-              <p class="blurb">Open a Debug Session. Linux accepts Access Profile and Session Profile; Windows accepts Session Profile and WSL.</p>
+              <div class="path">/api/targets/{id}/start</div>
+              <p class="blurb">Open the target's GitHub workflow. Remaining workflow_dispatch inputs are sent as JSON.</p>
             </div>
-            <button class="btn btn-quiet" type="button" data-copy="/api/slots/linux/start">Copy</button>
+            <button class="btn btn-quiet" type="button" data-copy="/api/targets/{id}/start">Copy</button>
           </div>
           <div class="route">
             <div class="method">POST</div>
             <div>
-              <div class="path">/api/slots/{linux|windows}/stop</div>
-              <p class="blurb">Close a running Debug Session.</p>
+              <div class="path">/api/targets/{id}/stop</div>
+              <p class="blurb">Cancel the live GitHub run for that target.</p>
             </div>
-            <button class="btn btn-quiet" type="button" data-copy="/api/slots/linux/stop">Copy</button>
+            <button class="btn btn-quiet" type="button" data-copy="/api/targets/{id}/stop">Copy</button>
           </div>
         </div>
       </section>
     </main>
-    <footer class="app-foot">on = reserved hostname is on the tailnet</footer>
+    <footer class="app-foot">on = observer found a live Locator</footer>
   </div>
   <div id="dialog" class="scrim hidden" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
     <form class="dialog" id="start-form">
@@ -802,7 +724,9 @@ export function renderPage(): string {
     const STORAGE = "debug-session-admin-token";
     const PROFILE_KEY = "debug-session-profiles";
     const JOURNAL_KEY = "debug-session-journal";
-    const SLOT_KEY = "debug-session-slot";
+    const TARGET_KEY = "debug-session-target";
+    const PROJECT_TARGETS_KEY = "debug-session-project-targets";
+    let CATALOG = [];
     const tokenInput = document.getElementById("token");
     const gateError = document.getElementById("gate-error");
     const gate = document.getElementById("gate");
@@ -814,16 +738,26 @@ export function renderPage(): string {
     const dialogHint = document.getElementById("dialog-hint");
     const dialogFields = document.getElementById("dialog-fields");
     const dialogSubmit = document.getElementById("dialog-submit");
-    const closing = { linux: false, windows: false };
+    const board = document.getElementById("view-slots");
+    const targetNav = document.getElementById("target-nav");
+    const projectSelect = document.getElementById("project-select");
+    const targetPicks = document.getElementById("target-picks");
+    const closing = {};
     const profiles = loadProfiles();
+    const projectTargets = loadProjectTargets();
     let journal = loadJournal();
     let toastTimer = 0;
-    let startSlot = "linux";
+    let startTarget = "";
     let dialogMode = "start";
     let view = "slots";
-    let activeSlot = sessionStorage.getItem(SLOT_KEY) === "windows" ? "windows" : "linux";
+    let activeTarget = sessionStorage.getItem(TARGET_KEY) || "";
+    let activeProject = "";
 
     tokenInput.value = sessionStorage.getItem(STORAGE) || "";
+
+    function meta(id) {
+      return CATALOG.find(function (target) { return target.id === id; }) || CATALOG[0] || { id: "", label: "", repo: "", onCaption: "", inputs: [] };
+    }
 
     function token() {
       return tokenInput.value.trim();
@@ -842,36 +776,126 @@ export function renderPage(): string {
       sessionStorage.setItem(PROFILE_KEY, JSON.stringify(profiles));
     }
 
-    function profileFor(slot) {
-      const current = profiles[slot] || {};
-      if (slot === "linux") {
-        return {
-          access_profile: current.access_profile === "full" ? "full" : "mini",
-          session_profile: current.session_profile === "core" ? "core" : "developer",
-        };
-      }
-      return {
-        session_profile: current.session_profile === "core" ? "core" : "developer",
-        enable_wsl: current.enable_wsl === "true" ? "true" : "false",
-      };
+    function loadProjectTargets() {
+      try { return JSON.parse(sessionStorage.getItem(PROJECT_TARGETS_KEY) || "{}"); }
+      catch (e) { return {}; }
     }
 
-    function paintOpts(card, slot, editable) {
-      const chosen = profileFor(slot);
-      function mark(selector, value) {
-        card.querySelectorAll(selector).forEach(function (btn) {
-          const key = btn.dataset.accessPick || btn.dataset.sessionPick || btn.dataset.wslPick;
-          btn.setAttribute("aria-checked", key === value ? "true" : "false");
-          btn.disabled = !editable;
-        });
+    function saveProjectTargets() {
+      sessionStorage.setItem(PROJECT_TARGETS_KEY, JSON.stringify(projectTargets));
+    }
+
+    function profileFor(id) {
+      const item = meta(id);
+      const current = profiles[id] || {};
+      const next = {};
+      (item.inputs || []).forEach(function (spec) {
+        const fallback = spec.default || (spec.type === "boolean" ? "false" : (spec.options && spec.options[0]) || "");
+        const value = current[spec.name];
+        if (spec.type === "choice" && spec.options && spec.options.indexOf(value) !== -1) next[spec.name] = value;
+        else if (spec.type === "boolean") next[spec.name] = value === "true" ? "true" : "false";
+        else if (typeof value === "string" && value) next[spec.name] = value;
+        else next[spec.name] = fallback;
+      });
+      return next;
+    }
+
+    function paintOpts(card, id, editable) {
+      const chosen = profileFor(id);
+      card.querySelectorAll("[data-input-pick]").forEach(function (btn) {
+        const name = btn.dataset.inputName;
+        btn.setAttribute("aria-checked", btn.dataset.inputPick === chosen[name] ? "true" : "false");
+        btn.disabled = !editable;
+      });
+    }
+
+    function pickerLabel(target) {
+      const clash = CATALOG.filter(function (item) { return item.repo === target.repo && item.label === target.label; }).length > 1;
+      return clash ? target.id : target.label;
+    }
+
+    function repos() {
+      return CATALOG.reduce(function (list, target) {
+        if (list.indexOf(target.repo) === -1) list.push(target.repo);
+        return list;
+      }, []);
+    }
+
+    function targetsForProject(repo) {
+      return CATALOG.filter(function (target) { return target.repo === repo; });
+    }
+
+    function projectLabel(repo) {
+      const name = repo.split("/").pop() || repo;
+      const clash = repos().filter(function (item) { return (item.split("/").pop() || item) === name; }).length > 1;
+      return clash ? repo : name;
+    }
+
+    function renderProjects() {
+      projectSelect.replaceChildren();
+      repos().forEach(function (repo) {
+        const option = document.createElement("option");
+        option.value = repo;
+        option.textContent = projectLabel(repo);
+        option.title = repo;
+        projectSelect.appendChild(option);
+      });
+      projectSelect.value = activeProject;
+    }
+
+    function renderTargetPicks() {
+      targetPicks.replaceChildren();
+      targetsForProject(activeProject).forEach(function (target) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "seg-btn";
+        button.dataset.targetPick = target.id;
+        button.setAttribute("role", "radio");
+        button.setAttribute("aria-checked", target.id === activeTarget ? "true" : "false");
+        button.tabIndex = target.id === activeTarget ? 0 : -1;
+        button.textContent = pickerLabel(target);
+        targetPicks.appendChild(button);
+      });
+    }
+
+    function kicker(name) {
+      return name.replace(/_/g, " ");
+    }
+
+    function mount(targets) {
+      CATALOG = targets || [];
+      const empty = document.getElementById("board-empty");
+      board.querySelectorAll("article.machine").forEach(function (card) { card.remove(); });
+      if (!CATALOG.length) {
+        if (empty) empty.classList.remove("hidden");
+        targetNav.classList.add("hidden");
+        targetPicks.replaceChildren();
+        projectSelect.replaceChildren();
+        activeProject = "";
+        return;
       }
-      if (slot === "linux") {
-        mark("[data-access-pick]", chosen.access_profile);
-        mark("[data-session-pick]", chosen.session_profile);
-      } else {
-        mark("[data-session-pick]", chosen.session_profile);
-        mark("[data-wsl-pick]", chosen.enable_wsl);
-      }
+      if (empty) empty.classList.add("hidden");
+      targetNav.classList.remove("hidden");
+      const selected = CATALOG.find(function (target) { return target.id === activeTarget; });
+      const nextProject = selected ? selected.repo : (repos().indexOf(activeProject) !== -1 ? activeProject : repos()[0]);
+      activeProject = nextProject;
+      renderProjects();
+      CATALOG.forEach(function (target) {
+        board.insertAdjacentHTML("beforeend", cardHtml(target, target.id === activeTarget));
+      });
+      setProject(activeProject, selected ? selected.id : "");
+    }
+
+    function cardHtml(target, selected) {
+      const opts = (target.inputs || []).map(function (spec) {
+        const options = spec.type === "boolean" ? ["false", "true"] : (spec.options || []);
+        const buttons = options.map(function (option) {
+          const label = spec.type === "boolean" ? (option === "true" ? "on" : "off") : option;
+          return '<button type="button" class="seg-btn" data-input-name="' + spec.name + '" data-input-pick="' + option + '" role="radio">' + label + "</button>";
+        }).join("");
+        return '<div class="opt"><span class="kicker">' + kicker(spec.name) + '</span><div class="seg" role="radiogroup" aria-label="' + spec.name + '">' + buttons + "</div></div>";
+      }).join("");
+      return '<article class="machine' + (selected ? "" : " hidden") + '" data-target="' + target.id + '">' + (opts ? '<div class="opts">' + opts + "</div>" : "") + '<div class="status"><div class="word is-off" data-word>off</div><span class="led" data-led></span></div><dl class="facts is-empty"><div class="hidden" data-opened-fact><dt>For</dt><dd data-opened></dd></div><div class="hidden" data-run-fact><dt data-run-label>Last run</dt><dd data-run>—</dd></div><div class="hidden" data-left-fact><dt>Left</dt><dd data-left></dd></div><div class="hidden" data-elapsed-fact><dt>Elapsed</dt><dd data-elapsed></dd></div></dl><div class="actions"><button class="btn btn-primary" data-action="start" type="button">Open</button><button class="btn btn-ghost" data-action="stop" type="button" disabled>Close</button></div></article>';
     }
 
     function loadJournal() {
@@ -900,15 +924,40 @@ export function renderPage(): string {
       document.getElementById("view-api").classList.toggle("hidden", name !== "api");
     }
 
-    function setSlot(id) {
-      activeSlot = id === "windows" ? "windows" : "linux";
-      sessionStorage.setItem(SLOT_KEY, activeSlot);
-      document.querySelectorAll("[data-slot-pick]").forEach(function (btn) {
-        btn.setAttribute("aria-checked", btn.dataset.slotPick === activeSlot ? "true" : "false");
+    function setTarget(id) {
+      const target = CATALOG.find(function (item) { return item.id === id; });
+      if (!target) return;
+      if (target.repo !== activeProject) {
+        activeProject = target.repo;
+        projectSelect.value = activeProject;
+        renderTargetPicks();
+      }
+      activeTarget = id;
+      sessionStorage.setItem(TARGET_KEY, activeTarget);
+      projectTargets[activeProject] = activeTarget;
+      saveProjectTargets();
+      targetPicks.querySelectorAll("[data-target-pick]").forEach(function (btn) {
+        const selected = btn.dataset.targetPick === activeTarget;
+        btn.setAttribute("aria-checked", selected ? "true" : "false");
+        btn.tabIndex = selected ? 0 : -1;
       });
       document.querySelectorAll(".machine").forEach(function (card) {
-        card.classList.toggle("hidden", card.dataset.slot !== activeSlot);
+        card.classList.toggle("hidden", card.dataset.target !== activeTarget);
       });
+      const foot = document.querySelector(".app-foot");
+      if (foot) foot.textContent = meta(activeTarget).onCaption;
+    }
+
+    function setProject(repo, preferredTarget) {
+      const available = targetsForProject(repo);
+      if (!available.length) return;
+      activeProject = repo;
+      projectSelect.value = activeProject;
+      const remembered = preferredTarget || projectTargets[repo] || "";
+      const next = available.some(function (target) { return target.id === remembered; }) ? remembered : available[0].id;
+      activeTarget = next;
+      renderTargetPicks();
+      setTarget(next);
     }
 
     function unlock() {
@@ -916,7 +965,7 @@ export function renderPage(): string {
       app.classList.remove("hidden");
       document.body.classList.add("is-app");
       setView(view);
-      setSlot(activeSlot);
+      setTarget(activeTarget);
     }
 
     function lock() {
@@ -942,11 +991,11 @@ export function renderPage(): string {
       return data;
     }
 
-    function runLabel(slot) {
-      if (!slot.runUrl) return "—";
-      const match = slot.runUrl.match(/\\/runs\\/(\\d+)/);
+    function runLabel(target) {
+      if (!target.runUrl) return "—";
+      const match = target.runUrl.match(/\\/runs\\/(\\d+)/);
       const label = match ? "#" + match[1] : "run";
-      return '<a href="' + slot.runUrl + '" target="_blank" rel="noreferrer">' + label + "</a>";
+      return '<a href="' + target.runUrl + '" target="_blank" rel="noreferrer">' + label + "</a>";
     }
 
     function formatDuration(ms) {
@@ -957,27 +1006,28 @@ export function renderPage(): string {
       return minutes ? hours + "h " + String(minutes).padStart(2, "0") + "m" : hours + "h";
     }
 
-    function paint(slot) {
-      if (closing[slot.id] && (slot.state === "on" || slot.state === "starting")) {
-        slot = Object.assign({}, slot, { state: "stopping" });
+    function paint(target) {
+      if (closing[target.id] && (target.state === "on" || target.state === "starting")) {
+        target = Object.assign({}, target, { state: "stopping" });
       }
-      if (slot.state === "off" || slot.state === "failed") closing[slot.id] = false;
-      const card = document.querySelector('[data-slot="' + slot.id + '"]');
+      if (target.state === "off" || target.state === "failed") closing[target.id] = false;
+      const card = document.querySelector('[data-target="' + target.id + '"]');
+      if (!card) return;
       const word = card.querySelector("[data-word]");
-      word.textContent = slot.state;
-      word.className = "word is-" + slot.state;
+      word.textContent = target.state;
+      word.className = "word is-" + target.state;
       const led = card.querySelector("[data-led]");
-      const live = slot.state === "on" || slot.state === "starting";
-      const active = slot.state === "on" || slot.state === "starting" || slot.state === "stopping";
-      const joined = slot.state === "on" || slot.state === "stopping";
-      led.className = "led" + (live ? " is-live" : "") + (slot.state === "failed" ? " is-failed" : "");
+      const live = target.state === "on" || target.state === "starting";
+      const active = target.state === "on" || target.state === "starting" || target.state === "stopping";
+      const ready = target.state === "on" || target.state === "stopping";
+      led.className = "led" + (live ? " is-live" : "") + (target.state === "failed" ? " is-failed" : "");
       const runLabelEl = card.querySelector("[data-run-label]");
       if (runLabelEl) {
-        runLabelEl.textContent = (slot.state === "off" || slot.state === "failed") ? "Last run" : "Run";
+        runLabelEl.textContent = (target.state === "off" || target.state === "failed") ? "Last run" : "Run";
       }
-      card.querySelector("[data-run]").innerHTML = runLabel(slot);
+      card.querySelector("[data-run]").innerHTML = runLabel(target);
       const runFact = card.querySelector("[data-run-fact]");
-      if (runFact) runFact.classList.toggle("hidden", !slot.runUrl);
+      if (runFact) runFact.classList.toggle("hidden", !target.runUrl);
       function setFact(name, value) {
         const fact = card.querySelector("[data-" + name + "-fact]");
         if (!fact) return;
@@ -991,29 +1041,40 @@ export function renderPage(): string {
         }
         fact.classList.toggle("hidden", !value);
       }
-      const sshOpen = joined;
-      const rdpOpen = joined && !!slot.rdp;
-      const channels = card.querySelector("[data-channels]");
-      if (channels) {
-        channels.classList.toggle("hidden", !sshOpen && !rdpOpen);
-        const sshChannel = channels.querySelector("[data-ssh-channel]");
-        const rdpChannel = channels.querySelector("[data-rdp-channel]");
-        if (sshChannel) sshChannel.classList.toggle("hidden", !sshOpen);
-        if (rdpChannel) rdpChannel.classList.toggle("hidden", !rdpOpen);
+      function setLocatorFacts(card, facts) {
+        const list = card.querySelector(".facts");
+        const left = card.querySelector("[data-left-fact]");
+        if (!list || !left) return;
+        card.querySelectorAll("[data-locator-fact]").forEach(function (row) { row.remove(); });
+        facts.forEach(function (fact) {
+          if (!fact || !fact.label || !fact.value) return;
+          const row = document.createElement("div");
+          row.setAttribute("data-locator-fact", "");
+          const dt = document.createElement("dt");
+          dt.textContent = fact.label;
+          const dd = document.createElement("dd");
+          const button = document.createElement("button");
+          button.className = "btn btn-quiet fact-copy";
+          button.type = "button";
+          button.textContent = fact.value;
+          button.setAttribute("data-copy", fact.value);
+          dd.appendChild(button);
+          row.appendChild(dt);
+          row.appendChild(dd);
+          list.insertBefore(row, left);
+        });
       }
-      setFact("opened", slot.openedBy || "");
-      setFact("host", joined ? slot.hostname : "");
-      setFact("ssh", sshOpen && slot.ssh ? "ssh " + slot.ssh : "");
-      setFact("rdp", rdpOpen ? slot.rdp : "");
-      if (joined && slot.startedAt) {
-        const started = Date.parse(slot.startedAt);
+      setFact("opened", target.openedBy || "");
+      setLocatorFacts(card, ready && Array.isArray(target.facts) ? target.facts : []);
+      if (ready && target.startedAt) {
+        const started = Date.parse(target.startedAt);
         setFact("left", formatDuration(started + ${SESSION_DEADLINE_MINUTES} * 60 * 1000 - Date.now()));
         setFact("elapsed", formatDuration(Date.now() - started));
       } else {
         setFact("left", "");
         setFact("elapsed", "");
       }
-      paintOpts(card, slot.id, !active);
+      paintOpts(card, target.id, !active);
       const facts = card.querySelector(".facts");
       if (facts) {
         facts.classList.toggle("is-empty", !facts.querySelector(":scope > div:not(.hidden)"));
@@ -1038,17 +1099,17 @@ export function renderPage(): string {
         const tr = document.createElement("tr");
         tr.innerHTML =
           '<td class="mono">' + row.time + "</td>" +
-          '<td class="mono">' + row.slot + "</td>" +
+          '<td class="mono">' + row.target + "</td>" +
           '<td class="mono">' + row.intent + "</td>" +
           "<td>" + row.detail + "</td>";
         body.appendChild(tr);
       });
     }
 
-    function record(slot, intent, detail) {
+    function record(id, intent, detail) {
       journal.unshift({
         time: new Date().toISOString().replace("T", " ").replace(/\\.\\d+Z$/, "Z"),
-        slot: slot,
+        target: id,
         intent: intent,
         detail: detail,
       });
@@ -1059,8 +1120,9 @@ export function renderPage(): string {
 
     async function refresh() {
       if (!token()) return;
-      const body = await api("/api/slots");
-      body.slots.forEach(paint);
+      const body = await api("/api/targets");
+      mount(body.targets);
+      body.targets.forEach(paint);
     }
 
     async function enter() {
@@ -1078,28 +1140,27 @@ export function renderPage(): string {
       }
     }
 
-    function openStartDialog(slot) {
+    function openStartDialog(id) {
       dialogMode = "start";
-      startSlot = slot;
+      startTarget = id;
       dialogSubmit.className = "btn btn-primary";
       dialogSubmit.textContent = "Confirm";
       dialogFields.innerHTML = "";
-      const chosen = profileFor(slot);
-      if (slot === "linux") {
-        dialogTitle.textContent = "Open Linux";
-        dialogHint.textContent = "Open with Access " + chosen.access_profile + " and Session " + chosen.session_profile + ". Access Profile picks the entry path; Session Profile picks how deep the machine is provisioned.";
-      } else {
-        dialogTitle.textContent = "Open Windows";
-        dialogHint.textContent = "Open with Session " + chosen.session_profile + " and WSL " + (chosen.enable_wsl === "true" ? "on" : "off") + ". Session Profile picks provision depth. Turn on WSL only if you need a Linux subsystem.";
-      }
+      const item = meta(id);
+      const chosen = profileFor(id);
+      const keys = Object.keys(chosen);
+      dialogTitle.textContent = "Open " + item.label;
+      dialogHint.textContent = keys.length
+        ? "Open " + item.label + " with " + keys.map(function (key) { return kicker(key) + " " + chosen[key]; }).join(" and ") + ". Credentials stay in the GitHub repository."
+        : "Open a " + item.label + " Session. Credentials stay in the GitHub repository.";
       dialog.classList.remove("hidden");
     }
 
-    function openStopDialog(slot) {
+    function openStopDialog(id) {
       dialogMode = "stop";
-      startSlot = slot;
-      dialogTitle.textContent = slot === "windows" ? "Close Windows" : "Close Linux";
-      dialogHint.textContent = "This stops the GitHub run. SSH will drop.";
+      startTarget = id;
+      dialogTitle.textContent = "Close " + meta(id).label;
+      dialogHint.textContent = "This stops the GitHub run.";
       dialogFields.innerHTML = "";
       dialogSubmit.className = "btn btn-danger";
       dialogSubmit.textContent = "Close";
@@ -1115,35 +1176,48 @@ export function renderPage(): string {
       if (event.key === "Enter") enter();
     });
     document.getElementById("lock").addEventListener("click", lock);
+    projectSelect.addEventListener("change", function () { setProject(projectSelect.value); });
+    targetPicks.addEventListener("keydown", function (event) {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      const buttons = Array.from(targetPicks.querySelectorAll("[data-target-pick]"));
+      if (!buttons.length) return;
+      const current = Math.max(0, buttons.indexOf(document.activeElement));
+      const next = event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? buttons.length - 1
+          : (current + (event.key === "ArrowRight" ? 1 : -1) + buttons.length) % buttons.length;
+      event.preventDefault();
+      setTarget(buttons[next].dataset.targetPick);
+      buttons[next].focus();
+      buttons[next].scrollIntoView({ block: "nearest", inline: "nearest" });
+    });
     document.querySelectorAll(".tabs .tab").forEach(function (tab) {
       tab.addEventListener("click", function () { setView(tab.dataset.view); });
     });
-    document.querySelectorAll("[data-slot-pick]").forEach(function (btn) {
-      btn.addEventListener("click", function () { setSlot(btn.dataset.slotPick); });
-    });
-    document.querySelectorAll("[data-access-pick], [data-session-pick], [data-wsl-pick]").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        if (btn.disabled) return;
-        const card = btn.closest("[data-slot]");
-        const slot = card.dataset.slot;
-        const next = profileFor(slot);
-        if (btn.dataset.accessPick) next.access_profile = btn.dataset.accessPick;
-        if (btn.dataset.sessionPick) next.session_profile = btn.dataset.sessionPick;
-        if (btn.dataset.wslPick) next.enable_wsl = btn.dataset.wslPick;
-        profiles[slot] = next;
+    board.addEventListener("click", function (event) {
+      const pick = event.target.closest("[data-target-pick]");
+      if (pick) {
+        setTarget(pick.dataset.targetPick);
+        return;
+      }
+      const input = event.target.closest("[data-input-pick]");
+      if (input) {
+        if (input.disabled) return;
+        const card = input.closest("[data-target]");
+        const id = card.dataset.target;
+        const next = profileFor(id);
+        next[input.dataset.inputName] = input.dataset.inputPick;
+        profiles[id] = next;
         saveProfiles();
-        paintOpts(card, slot, true);
-      });
-    });
-    document.querySelectorAll("[data-action]").forEach(function (button) {
-      button.addEventListener("click", async function () {
-        const slot = button.closest("[data-slot]").dataset.slot;
-        if (button.dataset.action === "start") {
-          openStartDialog(slot);
-          return;
-        }
-        openStopDialog(slot);
-      });
+        paintOpts(card, id, true);
+        return;
+      }
+      const button = event.target.closest("[data-action]");
+      if (!button) return;
+      const id = button.closest("[data-target]").dataset.target;
+      if (button.dataset.action === "start") openStartDialog(id);
+      else openStopDialog(id);
     });
     document.getElementById("dialog-cancel").addEventListener("click", closeDialog);
     dialog.addEventListener("click", function (event) {
@@ -1153,10 +1227,10 @@ export function renderPage(): string {
       event.preventDefault();
       if (dialogMode === "stop") {
         try {
-          const next = await api("/api/slots/" + startSlot + "/stop", "POST");
-          closing[startSlot] = true;
+          const next = await api("/api/targets/" + startTarget + "/stop", "POST");
+          closing[startTarget] = true;
           paint(next);
-          record(startSlot, "stop", "stop");
+          record(startTarget, "stop", "stop");
           closeDialog();
           toast("Stop sent");
         } catch (err) {
@@ -1164,16 +1238,17 @@ export function renderPage(): string {
         }
         return;
       }
-      const body = profileFor(startSlot);
+      const body = profileFor(startTarget);
       try {
-        const next = await api("/api/slots/" + startSlot + "/start", "POST", body);
-        profiles[startSlot] = body;
+        const next = await api("/api/targets/" + startTarget + "/start", "POST", body);
+        profiles[startTarget] = body;
         saveProfiles();
         paint(next);
-        const detail = startSlot === "linux"
-          ? "access " + body.access_profile + " · session " + body.session_profile
-          : "session " + body.session_profile + " · wsl " + (body.enable_wsl === "true" ? "on" : "off");
-        record(startSlot, "start", detail);
+        const keys = Object.keys(body);
+        const detail = keys.length
+          ? keys.map(function (key) { return kicker(key) + " " + body[key]; }).join(" · ")
+          : meta(startTarget).label;
+        record(startTarget, "start", detail);
         closeDialog();
         toast("Open sent");
       } catch (err) {

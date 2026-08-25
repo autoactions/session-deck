@@ -1,46 +1,44 @@
-import type { SlotId } from "./github.ts";
-
 export type AccessProfile = "mini" | "full";
 
-export type SlotIntents = {
-  markStarting(slot: SlotId): void;
+export type TargetIntents = {
+  markStarting(id: string): void;
   markStopping(runId: number): void;
-  isStarting(slot: SlotId): boolean;
+  isStarting(id: string): boolean;
   isStopping(runId: number): boolean;
-  clearStarting(slot: SlotId): void;
-  rememberAccess(slot: SlotId, access: AccessProfile): void;
-  accessFor(slot: SlotId): AccessProfile | null;
-  forgetAccess(slot: SlotId): void;
+  clearStarting(id: string): void;
+  rememberAccess(id: string, access: AccessProfile): void;
+  accessFor(id: string): AccessProfile | null;
+  forgetAccess(id: string): void;
 };
 
-export function memorySlotIntents(): SlotIntents {
-  const starting = new Set<SlotId>();
+export function memoryTargetIntents(): TargetIntents {
+  const starting = new Set<string>();
   const stopping = new Set<number>();
-  const access = new Map<SlotId, AccessProfile>();
+  const access = new Map<string, AccessProfile>();
   return {
-    markStarting(slot) {
-      starting.add(slot);
+    markStarting(id) {
+      starting.add(id);
     },
     markStopping(runId) {
       stopping.add(runId);
     },
-    isStarting(slot) {
-      return starting.has(slot);
+    isStarting(id) {
+      return starting.has(id);
     },
     isStopping(runId) {
       return stopping.has(runId);
     },
-    clearStarting(slot) {
-      starting.delete(slot);
+    clearStarting(id) {
+      starting.delete(id);
     },
-    rememberAccess(slot, profile) {
-      access.set(slot, profile);
+    rememberAccess(id, profile) {
+      access.set(id, profile);
     },
-    accessFor(slot) {
-      return access.get(slot) ?? null;
+    accessFor(id) {
+      return access.get(id) ?? null;
     },
-    forgetAccess(slot) {
-      access.delete(slot);
+    forgetAccess(id) {
+      access.delete(id);
     },
   };
 }
