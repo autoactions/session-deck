@@ -1,8 +1,8 @@
 import type { GitHubActions, WorkflowRun } from "../src/github.ts";
 
 const REPOS: Record<string, string> = {
-  linux: "autoactions/debug-session",
-  windows: "autoactions/debug-session",
+  "tsrv/linux": "autoactions/tsrv",
+  "tsrv/windows": "autoactions/tsrv",
   chrome: "autoactions/tsvc",
   motrix: "autoactions/tsvc",
   openlist: "autoactions/tsvc",
@@ -10,15 +10,15 @@ const REPOS: Record<string, string> = {
 
 export class FakeGitHub implements GitHubActions {
   runs: Record<string, WorkflowRun | null> = {
-    linux: null,
-    windows: null,
+    "tsrv/linux": null,
+    "tsrv/windows": null,
     chrome: null,
     motrix: null,
     openlist: null,
   };
   lastInputs: Record<string, Record<string, string> | null> = {
-    linux: null,
-    windows: null,
+    "tsrv/linux": null,
+    "tsrv/windows": null,
     chrome: null,
     motrix: null,
     openlist: null,
@@ -50,7 +50,7 @@ export class FakeGitHub implements GitHubActions {
     }
   }
 
-  async jobOutput(_id: string, runId: number): Promise<string | null> {
+  async observerOutput(_id: string, runId: number): Promise<string | null> {
     return this.outputs[runId] ?? null;
   }
 }

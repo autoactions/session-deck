@@ -18,9 +18,9 @@ on:
           - developer
         default: developer
 jobs:
-  debug-session:
+  tsrv:
     env:
-      TAILSCALE_HOSTNAME: debug-session-linux
+      TAILSCALE_HOSTNAME: tsrv-linux
 `;
 
 const tsvc = `name: tsvc
@@ -44,11 +44,11 @@ on:
 
 describe("targetsFromWorkflow", () => {
   it("maps a Tailscale workflow to a GitHub run observer", () => {
-    expect(targetsFromWorkflow("autoactions/debug-session", ".github/workflows/linux.yml", linux)).toEqual([
+    expect(targetsFromWorkflow("autoactions/tsrv", ".github/workflows/linux.yml", linux)).toEqual([
       expect.objectContaining({
-        id: "debug-session/linux",
+        id: "tsrv/linux",
         label: "Linux",
-        repo: "autoactions/debug-session",
+        repo: "autoactions/tsrv",
         workflow: "linux.yml",
         ready: { kind: "github-run" },
         defaultInputs: { access_profile: "mini", session_profile: "developer" },

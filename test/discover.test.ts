@@ -11,9 +11,9 @@ on:
         options: [mini, full]
         default: mini
 jobs:
-  debug-session:
+  tsrv:
     env:
-      TAILSCALE_HOSTNAME: debug-session-linux
+      TAILSCALE_HOSTNAME: tsrv-linux
 `;
 
 const tsvc = `name: tsvc
@@ -42,12 +42,12 @@ describe("discoverTargets", () => {
   it("discovers linux and tsvc targets from listed repos without a hardcoded catalog", async () => {
     clearDiscoveryCache();
     const files: Record<string, Record<string, string>> = {
-      "autoactions/debug-session": { ".github/workflows/linux.yml": linux },
+      "autoactions/tsrv": { ".github/workflows/linux.yml": linux },
       "autoactions/tsvc": { ".github/workflows/tsvc.yml": tsvc },
     };
     const targets = await discoverTargets(Object.keys(files), (repo) => access(repo, files[repo]));
     expect(targets.map((target) => target.id)).toEqual([
-      "debug-session/linux",
+      "tsrv/linux",
       "tsvc/chrome",
       "tsvc/motrix",
       "tsvc/openlist",

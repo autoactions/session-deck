@@ -1,8 +1,8 @@
 import type { LocatorFact } from "./locators.ts";
 
 const HEADING = "## Sensitive Facts";
-const PREFIX = "enc:v1:";
-const ITERATIONS = 600_000;
+const PREFIX = "enc:v2:";
+const ITERATIONS = 100_000;
 const LABEL_PATTERN = /^[^:\r\n]{1,80}$/;
 const MAX_CIPHERTEXT_BYTES = 4_112;
 const MAX_FACTS = 8;
@@ -57,7 +57,7 @@ function parseEncryptedBlock(text: string): {
     for (; cursor < lines.length; cursor++) {
       const trimmed = lines[cursor]!.trim();
       if (trimmed === "" || /^#{1,6}\s/.test(trimmed)) break;
-      const match = lines[cursor]!.match(/^-\s+([^:]+):\s+(enc:v1:\S+)$/);
+      const match = lines[cursor]!.match(/^-\s+([^:]+):\s+(enc:v2:\S+)$/);
       const label = match?.[1]?.trim() ?? "";
       const envelope = match?.[2] ?? "";
       if (
@@ -120,7 +120,7 @@ async function decryptEnvelope(label: string, envelope: string, password: string
 }
 
 function aad(label: string): string {
-  return `session-deck-sensitive-fact:v1:${label}`;
+  return `session-deck-sensitive-fact:v2:${label}`;
 }
 
 function decodeBase64Url(value: string): Uint8Array<ArrayBuffer> {

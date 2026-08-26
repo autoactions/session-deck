@@ -1,4 +1,9 @@
 import type { DispatchInputs } from "./catalog.ts";
+import {
+  LOCATOR_ARTIFACT_NAME,
+  MAX_LOCATOR_ARCHIVE_BYTES,
+  readLocatorArtifact,
+} from "./artifacts.ts";
 import { hasLocatorBlock } from "./locators.ts";
 
 export type { DispatchInputs };
@@ -22,7 +27,7 @@ export type GitHubActions = {
   latestRun(id: string): Promise<WorkflowRun | null>;
   dispatch(id: string, inputs?: DispatchInputs): Promise<void>;
   cancel(id: string, runId: number): Promise<void>;
-  jobOutput?(id: string, runId: number): Promise<string | null>;
+  observerOutput?(id: string, runId: number): Promise<string | null>;
 };
 
 export type GitHubRepoClient = GitHubActions & { has(id: string): boolean };
@@ -91,7 +96,7 @@ export function createGitHubRepoAccess(config: GitHubActionsConfig): GitHubRepoA
 }
 
 export function createGitHubActions(config: GitHubActionsConfig): GitHubRepoClient {
-  const { authed, githubFetch } = githubHttp(config);
+  const { authed, githubFetch, unsigned } = githubHttp(config);
   const base = baseUrl(config);
   const targets = config.targets ?? {};
 
@@ -131,30 +136,90 @@ export function createGitHubActions(config: GitHubActionsConfig): GitHubRepoClie
       await githubFetch(`/actions/runs/${runId}/cancel`, { method: "POST" });
     },
 
-    async jobOutput(_id, runId) {
-      const response = await githubFetch(`/actions/runs/${runId}/jobs`);
-      const body = (await response.json()) as {
-        jobs?: Array<{ id: number; check_run_url?: string }>;
-      };
-      const chunks: string[] = [];
-      for (const job of body.jobs ?? []) {
-        if (job.check_run_url) {
-          const check = await authed(job.check_run_url);
-          if (check.ok) {
-            const json = (await check.json()) as { output?: { summary?: string | null; text?: string | null } };
-            chunks.push(json.output?.summary ?? "", json.output?.text ?? "");
-          }
-        }
-        if (hasLocatorBlock(chunks.join("\n"))) return chunks.join("\n");
-        const logs = await authed(`${base}/actions/jobs/${job.id}/logs`, {
-          headers: { Accept: "*/*" },
-        });
-        if (logs.ok) chunks.push(await logs.text());
-      }
-      const text = chunks.join("\n").trim();
-      return text || null;
+    async observerOutput(_id, runId) {
+      const artifact = await locatorArtifact(runId);
+      if (artifact.found) return artifact.output;
+      return legacyJobOutput(runId);
     },
   };
+
+  async function locatorArtifact(runId: number): Promise<{ found: boolean; output: string | null }> {
+    let body: {
+      artifacts?: Array<{
+        id?: number;
+        name?: string;
+        expired?: boolean;
+        size_in_bytes?: number;
+        workflow_run?: { id?: number } | null;
+      }>;
+    };
+    try {
+      const response = await githubFetch(
+        `/actions/runs/${runId}/artifacts?name=${LOCATOR_ARTIFACT_NAME}&per_page=100`,
+      );
+      body = (await response.json()) as typeof body;
+    } catch {
+      return { found: false, output: null };
+    }
+    const artifacts = body.artifacts ?? [];
+    if (artifacts.length === 0) return { found: false, output: null };
+    if (artifacts.length !== 1) return { found: true, output: null };
+
+    const artifact = artifacts[0]!;
+    if (
+      !Number.isSafeInteger(artifact.id) ||
+      artifact.name !== LOCATOR_ARTIFACT_NAME ||
+      artifact.expired !== false ||
+      artifact.workflow_run?.id !== runId ||
+      !Number.isSafeInteger(artifact.size_in_bytes) ||
+      artifact.size_in_bytes! <= 0 ||
+      artifact.size_in_bytes! > MAX_LOCATOR_ARCHIVE_BYTES
+    ) {
+      return { found: true, output: null };
+    }
+
+    const zipUrl = `${base}/actions/artifacts/${artifact.id}/zip`;
+    const zipResponse = await authed(zipUrl, { redirect: "manual" });
+    const download = await artifactDownload(zipUrl, zipResponse);
+    if (!download?.ok) return { found: true, output: null };
+    const contentLength = Number(download.headers.get("content-length"));
+    if (Number.isFinite(contentLength) && contentLength > MAX_LOCATOR_ARCHIVE_BYTES) {
+      return { found: true, output: null };
+    }
+    const archive = new Uint8Array(await download.arrayBuffer());
+    return { found: true, output: readLocatorArtifact(archive) };
+  }
+
+  async function artifactDownload(zipUrl: string, zipResponse: Response): Promise<Response | null> {
+    if (zipResponse.status !== 302) return zipResponse;
+    const downloadUrl = signedDownloadUrl(zipResponse.headers.get("Location"), zipUrl);
+    if (!downloadUrl) return null;
+    return unsigned(downloadUrl);
+  }
+
+  async function legacyJobOutput(runId: number): Promise<string | null> {
+    const response = await githubFetch(`/actions/runs/${runId}/jobs`);
+    const body = (await response.json()) as {
+      jobs?: Array<{ id: number; check_run_url?: string }>;
+    };
+    const chunks: string[] = [];
+    for (const job of body.jobs ?? []) {
+      if (job.check_run_url) {
+        const check = await authed(job.check_run_url);
+        if (check.ok) {
+          const json = (await check.json()) as { output?: { summary?: string | null; text?: string | null } };
+          chunks.push(json.output?.summary ?? "", json.output?.text ?? "");
+        }
+      }
+      if (hasLocatorBlock(chunks.join("\n"))) return chunks.join("\n");
+      const logs = await authed(`${base}/actions/jobs/${job.id}/logs`, {
+        headers: { Accept: "*/*" },
+      });
+      if (logs.ok) chunks.push(await logs.text());
+    }
+    const text = chunks.join("\n").trim();
+    return text || null;
+  }
 }
 
 export function combineGitHub(clients: GitHubRepoClient[]): GitHubActions {
@@ -176,8 +241,8 @@ export function combineGitHub(clients: GitHubRepoClient[]): GitHubActions {
       if (!found) throw new Error(`unknown target ${id}`);
       await found.cancel(id, runId);
     },
-    async jobOutput(id, runId) {
-      return (await client(id)?.jobOutput?.(id, runId)) ?? null;
+    async observerOutput(id, runId) {
+      return (await client(id)?.observerOutput?.(id, runId)) ?? null;
     },
   };
 }
@@ -202,6 +267,18 @@ function baseUrl(config: GitHubActionsConfig): string {
   return `https://api.github.com/repos/${config.repo}`;
 }
 
+function signedDownloadUrl(location: string | null, requestUrl: string): string | null {
+  if (!location) return null;
+  try {
+    const url = new URL(location, requestUrl);
+    if (url.protocol !== "https:") return null;
+    if (url.hostname === "api.github.com") return null;
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
 function githubHttp(config: GitHubActionsConfig) {
   const fetchImpl = config.fetch ?? fetch;
   const base = baseUrl(config);
@@ -215,6 +292,12 @@ function githubHttp(config: GitHubActionsConfig) {
     return fetchImpl(url, { ...init, headers });
   }
 
+  async function unsigned(url: string): Promise<Response> {
+    return fetchImpl(url, {
+      headers: { "User-Agent": "session-deck" },
+    });
+  }
+
   async function githubFetch(path: string, init: RequestInit = {}): Promise<Response> {
     const response = await authed(`${base}${path}`, init);
     if (!response.ok) {
@@ -224,5 +307,5 @@ function githubHttp(config: GitHubActionsConfig) {
     return response;
   }
 
-  return { authed, githubFetch };
+  return { authed, githubFetch, unsigned };
 }

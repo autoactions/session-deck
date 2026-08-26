@@ -7,7 +7,7 @@ describe("management page", () => {
     const fetchImpl = createWorker({
       sessionPassword: "shared-session-password",
       github: new FakeGitHub(),
-      repos: ["autoactions/debug-session", "autoactions/tsvc"],
+      repos: ["autoactions/tsrv", "autoactions/tsvc"],
     });
     const response = await fetchImpl(new Request("https://control.test/"));
     expect(response.status).toBe(200);
@@ -33,7 +33,7 @@ describe("management page", () => {
     expect(html).toContain("Invalid session password");
     expect(html).not.toContain(["session-deck", "admin", "token"].join("-"));
     expect(html.toLowerCase()).not.toContain(["admin", "token"].join(" "));
-    expect(html).toContain("autoactions/debug-session");
+    expect(html).toContain("autoactions/tsrv");
     expect(html).toContain("autoactions/tsvc");
     expect(html).toContain('cache: "no-store"');
     expect(html).toContain('fact.querySelector(".fact-copy")');
@@ -43,6 +43,7 @@ describe("management page", () => {
     expect(html).toContain('role="radiogroup" aria-label="Target"');
     expect(html).toContain("function targetsForProject");
     expect(html).toContain("function setProject");
+    expect(html).toContain("available[0].id");
     expect(html).toContain("session-deck-project-targets");
     expect(html).not.toContain("const picks = CATALOG.map");
     expect(html).toContain("Enter");

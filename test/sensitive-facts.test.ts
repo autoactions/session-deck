@@ -14,7 +14,7 @@ async function envelope(label: string, value: string, secret = password): Promis
     ["deriveKey"],
   );
   const key = await crypto.subtle.deriveKey(
-    { name: "PBKDF2", hash: "SHA-256", salt, iterations: 600_000 },
+    { name: "PBKDF2", hash: "SHA-256", salt, iterations: 100_000 },
     material,
     { name: "AES-GCM", length: 256 },
     false,
@@ -24,13 +24,13 @@ async function envelope(label: string, value: string, secret = password): Promis
     {
       name: "AES-GCM",
       iv,
-      additionalData: new TextEncoder().encode(`session-deck-sensitive-fact:v1:${label}`),
+      additionalData: new TextEncoder().encode(`session-deck-sensitive-fact:v2:${label}`),
       tagLength: 128,
     },
     key,
     new TextEncoder().encode(value),
   );
-  return `enc:v1:${base64url(salt)}:${base64url(iv)}:${base64url(new Uint8Array(encrypted))}`;
+  return `enc:v2:${base64url(salt)}:${base64url(iv)}:${base64url(new Uint8Array(encrypted))}`;
 }
 
 function base64url(bytes: Uint8Array): string {
@@ -40,8 +40,8 @@ function base64url(bytes: Uint8Array): string {
 }
 
 describe("decryptSensitiveFacts", () => {
-  it("decrypts the fixed cross-repository v1 vector", async () => {
-    const fixed = "enc:v1:AQIDBAUGBwgJCgsMDQ4PEA:ERITFBUWFxgZGhsc:8XYgVKM3GYZMpY15qf4NG8huLDN3f-XD3WdOmQw";
+  it("decrypts the fixed cross-repository v2 vector", async () => {
+    const fixed = "enc:v2:AQIDBAUGBwgJCgsMDQ4PEA:ERITFBUWFxgZGhsc:Shap0xyfNasoDIc5tPqGpuH_Muzis2PBzP3gu_A";
     await expect(decryptSensitiveFacts(
       `## Sensitive Facts\n- Session Password: ${fixed}\n`,
       password,

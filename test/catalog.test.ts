@@ -3,15 +3,15 @@ import { githubRef, parseRepoList } from "../src/catalog.ts";
 
 describe("parseRepoList", () => {
   it("splits a comma-separated owner/repo list", () => {
-    expect(parseRepoList("autoactions/debug-session,autoactions/tsvc")).toEqual([
-      "autoactions/debug-session",
+    expect(parseRepoList("autoactions/tsrv,autoactions/tsvc")).toEqual([
+      "autoactions/tsrv",
       "autoactions/tsvc",
     ]);
   });
 
   it("trims, drops empties, and de-duplicates", () => {
-    expect(parseRepoList(" autoactions/debug-session , ,autoactions/debug-session ")).toEqual([
-      "autoactions/debug-session",
+    expect(parseRepoList(" autoactions/tsrv , ,autoactions/tsrv ")).toEqual([
+      "autoactions/tsrv",
     ]);
   });
 

@@ -4,9 +4,9 @@ const RUN_ON = "on = GitHub run is in progress";
 const ADDRESS_ON = "on = Locator Block is published";
 
 export const linuxTarget: Target = {
-  id: "linux",
+  id: "tsrv/linux",
   label: "Linux",
-  repo: "autoactions/debug-session",
+  repo: "autoactions/tsrv",
   workflow: "linux.yml",
   defaultInputs: { access_profile: "mini", session_profile: "developer" },
   inputs: [
@@ -18,9 +18,9 @@ export const linuxTarget: Target = {
 };
 
 export const windowsTarget: Target = {
-  id: "windows",
+  id: "tsrv/windows",
   label: "Windows",
-  repo: "autoactions/debug-session",
+  repo: "autoactions/tsrv",
   workflow: "windows.yml",
   defaultInputs: { session_profile: "developer", enable_wsl: "false" },
   inputs: [

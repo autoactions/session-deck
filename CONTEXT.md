@@ -17,15 +17,19 @@ How an operator reaches a live Target: a reserved Tailscale hostname, SSH/RDP, o
 _Avoid_: URL (too broad), endpoint, connection string
 
 **Locator Block**:
-The `## Locators` list a session job publishes when its core services are up. This plane observes those labeled lines and shows them; it does not decide which labels exist.
+The `## Locators` list a session job publishes when its core services are up. Debug Sessions and Temporary Service Sessions carry it in a run-scoped Locator Artifact. This plane shows the labeled lines but does not decide which labels exist.
 _Avoid_: manifest, plugin output, ready callback, address field
 
+**Locator Artifact**:
+The short-lived, run-scoped GitHub Actions Artifact named `session-deck-locators` that carries one Locator Block, and any encrypted Sensitive Facts, while the run remains active.
+_Avoid_: job output, callback payload, session archive
+
 **Sensitive Fact**:
-A labeled operator-facing value that a session job publishes only as an authenticated `enc:v1` envelope under `## Sensitive Facts`. This plane decrypts it with the shared Session Password after API authorization.
+A labeled operator-facing value that a session job publishes only as an authenticated `enc:v2` envelope under `## Sensitive Facts`. This plane decrypts it with the shared Session Password after API authorization.
 _Avoid_: Locator, GitHub Secret, plaintext output
 
 **Observer**:
-The GitHub signal this plane uses to derive a Target's state without a protocol to the machine: run state for a Debug Session, or job output for a Temporary Service Session.
+The GitHub signals this plane reads without a protocol to the machine: run state plus the Locator Artifact, with live job output only as a fallback.
 _Avoid_: callback, webhook, ready ping
 
 **Debug Session**:
@@ -33,7 +37,7 @@ A time-bounded remote environment on one GitHub-hosted machine, joined to Tailsc
 _Avoid_: runner (that is GitHub's name for the VM), job, workflow, debug switch
 
 **Slot**:
-A Debug Session Target that holds reserved capacity: `linux` (`debug-session-linux`) and `windows` (`debug-session-windows`).
+A Debug Session Target that holds reserved capacity: `tsrv/linux` (`tsrv-linux`) and `tsrv/windows` (`tsrv-windows`).
 _Avoid_: runner, environment, instance, Target (Slot is the reserved-capacity kind)
 
 **Session Password**:

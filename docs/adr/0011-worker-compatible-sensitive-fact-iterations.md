@@ -1,0 +1,3 @@
+# Sensitive Facts use 100,000 PBKDF2 iterations so the Worker can decrypt them
+
+The control plane decrypts Sensitive Facts on Cloudflare Workers. Workers WebCrypto rejects PBKDF2 above 100,000 iterations, and a JavaScript 600,000-iteration fallback exceeded Worker CPU limits, so `enc:v1` Session Password rows never appeared on the panel. New envelopes are `enc:v2` with PBKDF2-HMAC-SHA256 at 100,000 iterations (the Worker maximum) and AAD `session-deck-sensitive-fact:v2:<Label>`. This is weaker than the OWASP 600,000-iteration recommendation recorded in ADR-0009, but it is the strongest count the current compute can run. Existing `enc:v1` envelopes are not decrypted; a Debug Session still shows public Locators.

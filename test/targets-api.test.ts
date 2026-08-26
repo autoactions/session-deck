@@ -4,9 +4,9 @@ import { FakeGitHub } from "./fake-github.ts";
 import { DEBUG_CATALOG, SERVICE_CATALOG, linuxTarget, windowsTarget } from "./fixtures.ts";
 
 const linuxOff = {
-  id: "linux",
+  id: "tsrv/linux",
   label: "Linux",
-  repo: "autoactions/debug-session",
+  repo: "autoactions/tsrv",
   state: "off",
   runUrl: null,
   startedAt: null,
@@ -17,9 +17,9 @@ const linuxOff = {
 };
 
 const windowsOff = {
-  id: "windows",
+  id: "tsrv/windows",
   label: "Windows",
-  repo: "autoactions/debug-session",
+  repo: "autoactions/tsrv",
   state: "off",
   runUrl: null,
   startedAt: null,
@@ -50,9 +50,9 @@ function api(
 describe("target API auth", () => {
   const routes = [
     ["GET", "/api/targets"],
-    ["GET", "/api/targets/linux"],
-    ["POST", "/api/targets/linux/start"],
-    ["POST", "/api/targets/linux/stop"],
+    ["GET", "/api/targets/tsrv/linux"],
+    ["POST", "/api/targets/tsrv/linux/start"],
+    ["POST", "/api/targets/tsrv/linux/stop"],
   ] as const;
 
   it.each(routes)("rejects %s %s without a Session Password", async (method, path) => {
@@ -78,7 +78,7 @@ describe("target API auth", () => {
 });
 
 describe("reading targets", () => {
-  it("lists debug-session targets as off when GitHub has no runs", async () => {
+  it("lists tsrv targets as off when GitHub has no runs", async () => {
     const { fetch } = worker();
     const response = await api(fetch, "/api/targets");
     expect(response.status).toBe(200);
@@ -88,21 +88,21 @@ describe("reading targets", () => {
 
   it("reads one target from its latest GitHub run", async () => {
     const github = new FakeGitHub();
-    github.runs.linux = {
+    github.runs["tsrv/linux"] = {
       id: 42,
       status: "in_progress",
       conclusion: null,
-      htmlUrl: "https://github.com/autoactions/debug-session/actions/runs/42",
+      htmlUrl: "https://github.com/autoactions/tsrv/actions/runs/42",
       startedAt: "2026-08-18T10:00:00Z",
       openedBy: "octo",
     };
     const { fetch } = worker(github);
-    const response = await api(fetch, "/api/targets/linux");
+    const response = await api(fetch, "/api/targets/tsrv/linux");
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       ...linuxOff,
       state: "on",
-      runUrl: "https://github.com/autoactions/debug-session/actions/runs/42",
+      runUrl: "https://github.com/autoactions/tsrv/actions/runs/42",
       startedAt: "2026-08-18T10:00:00Z",
       openedBy: "octo",
     });
@@ -116,19 +116,19 @@ describe("reading targets", () => {
 
   it("maps queued runs to starting and failed conclusions to failed", async () => {
     const github = new FakeGitHub();
-    github.runs.linux = {
+    github.runs["tsrv/linux"] = {
       id: 1,
       status: "queued",
       conclusion: null,
-      htmlUrl: "https://github.com/autoactions/debug-session/actions/runs/1",
+      htmlUrl: "https://github.com/autoactions/tsrv/actions/runs/1",
       startedAt: null,
       openedBy: null,
     };
-    github.runs.windows = {
+    github.runs["tsrv/windows"] = {
       id: 2,
       status: "completed",
       conclusion: "failure",
-      htmlUrl: "https://github.com/autoactions/debug-session/actions/runs/2",
+      htmlUrl: "https://github.com/autoactions/tsrv/actions/runs/2",
       startedAt: "2026-08-18T09:00:00Z",
       openedBy: "octo",
     };
@@ -136,8 +136,8 @@ describe("reading targets", () => {
     const response = await api(fetch, "/api/targets");
     const body = (await response.json()) as { targets: { id: string; state: string }[] };
     expect(body.targets).toEqual([
-      expect.objectContaining({ id: "linux", state: "starting" }),
-      expect.objectContaining({ id: "windows", state: "failed" }),
+      expect.objectContaining({ id: "tsrv/linux", state: "starting" }),
+      expect.objectContaining({ id: "tsrv/windows", state: "failed" }),
     ]);
   });
 });
@@ -150,8 +150,8 @@ describe("opening and closing targets", () => {
       cancel: async () => {},
     };
     const fetchImpl = createWorker({ sessionPassword, github, catalog: DEBUG_CATALOG });
-    const opened = await api(fetchImpl, "/api/targets/linux/start", { method: "POST" });
-    expect(await opened.json()).toMatchObject({ id: "linux", state: "starting", facts: [] });
+    const opened = await api(fetchImpl, "/api/targets/tsrv/linux/start", { method: "POST" });
+    expect(await opened.json()).toMatchObject({ id: "tsrv/linux", state: "starting", facts: [] });
   });
 
   it("does not dispatch again while a start is already in flight", async () => {
@@ -164,60 +164,60 @@ describe("opening and closing targets", () => {
       cancel: async () => {},
     };
     const fetchImpl = createWorker({ sessionPassword, github, catalog: DEBUG_CATALOG });
-    await api(fetchImpl, "/api/targets/linux/start", { method: "POST" });
-    const again = await api(fetchImpl, "/api/targets/linux/start", { method: "POST" });
+    await api(fetchImpl, "/api/targets/tsrv/linux/start", { method: "POST" });
+    const again = await api(fetchImpl, "/api/targets/tsrv/linux/start", { method: "POST" });
     expect(dispatches).toBe(1);
-    expect(await again.json()).toMatchObject({ id: "linux", state: "starting" });
+    expect(await again.json()).toMatchObject({ id: "tsrv/linux", state: "starting" });
   });
 
   it("opens an off linux target and then shows starting", async () => {
     const { fetch } = worker();
-    const opened = await api(fetch, "/api/targets/linux/start", { method: "POST" });
+    const opened = await api(fetch, "/api/targets/tsrv/linux/start", { method: "POST" });
     expect(opened.status).toBe(200);
     expect(await opened.json()).toEqual({
       ...linuxOff,
       state: "starting",
-      runUrl: "https://github.com/autoactions/debug-session/actions/runs/1",
+      runUrl: "https://github.com/autoactions/tsrv/actions/runs/1",
     });
   });
 
   it("does not open a second run when the target is already on", async () => {
     const github = new FakeGitHub();
-    github.runs.linux = {
+    github.runs["tsrv/linux"] = {
       id: 7,
       status: "in_progress",
       conclusion: null,
-      htmlUrl: "https://github.com/autoactions/debug-session/actions/runs/7",
+      htmlUrl: "https://github.com/autoactions/tsrv/actions/runs/7",
       startedAt: "2026-08-18T10:00:00Z",
       openedBy: "octo",
     };
     const { fetch } = worker(github);
-    const opened = await api(fetch, "/api/targets/linux/start", { method: "POST" });
-    expect(await opened.json()).toMatchObject({ id: "linux", state: "on", runUrl: github.runs.linux.htmlUrl });
-    expect(github.runs.linux?.id).toBe(7);
+    const opened = await api(fetch, "/api/targets/tsrv/linux/start", { method: "POST" });
+    expect(await opened.json()).toMatchObject({ id: "tsrv/linux", state: "on", runUrl: github.runs["tsrv/linux"].htmlUrl });
+    expect(github.runs["tsrv/linux"]?.id).toBe(7);
   });
 
   it("closes an open target", async () => {
     const github = new FakeGitHub();
-    github.runs.windows = {
+    github.runs["tsrv/windows"] = {
       id: 9,
       status: "in_progress",
       conclusion: null,
-      htmlUrl: "https://github.com/autoactions/debug-session/actions/runs/9",
+      htmlUrl: "https://github.com/autoactions/tsrv/actions/runs/9",
       startedAt: "2026-08-18T10:00:00Z",
       openedBy: "octo",
     };
     const { fetch } = worker(github);
-    const closed = await api(fetch, "/api/targets/windows/stop", { method: "POST" });
-    expect(await closed.json()).toMatchObject({ id: "windows", state: "stopping" });
-    const listed = await api(fetch, "/api/targets/windows");
-    expect(await listed.json()).toMatchObject({ id: "windows", state: "stopping" });
+    const closed = await api(fetch, "/api/targets/tsrv/windows/stop", { method: "POST" });
+    expect(await closed.json()).toMatchObject({ id: "tsrv/windows", state: "stopping" });
+    const listed = await api(fetch, "/api/targets/tsrv/windows");
+    expect(await listed.json()).toMatchObject({ id: "tsrv/windows", state: "stopping" });
   });
 
   it("opens linux with default Access and Session profiles", async () => {
     const { fetch, github } = worker();
-    await api(fetch, "/api/targets/linux/start", { method: "POST" });
-    expect(github.lastInputs.linux).toEqual({
+    await api(fetch, "/api/targets/tsrv/linux/start", { method: "POST" });
+    expect(github.lastInputs["tsrv/linux"]).toEqual({
       access_profile: "mini",
       session_profile: "developer",
     });
@@ -225,12 +225,12 @@ describe("opening and closing targets", () => {
 
   it("opens linux with Access Profile and Session Profile from the body", async () => {
     const { fetch, github } = worker();
-    const opened = await api(fetch, "/api/targets/linux/start", {
+    const opened = await api(fetch, "/api/targets/tsrv/linux/start", {
       method: "POST",
       body: JSON.stringify({ access_profile: "full", session_profile: "core" }),
     });
     expect(opened.status).toBe(200);
-    expect(github.lastInputs.linux).toEqual({
+    expect(github.lastInputs["tsrv/linux"]).toEqual({
       access_profile: "full",
       session_profile: "core",
     });
@@ -238,11 +238,11 @@ describe("opening and closing targets", () => {
 
   it("opens windows with Session Profile and WSL from the body", async () => {
     const { fetch, github } = worker();
-    const opened = await api(fetch, "/api/targets/windows/start", {
+    const opened = await api(fetch, "/api/targets/tsrv/windows/start", {
       method: "POST",
       body: JSON.stringify({ session_profile: "core", enable_wsl: true }),
     });
-    expect(github.lastInputs.windows).toEqual({
+    expect(github.lastInputs["tsrv/windows"]).toEqual({
       session_profile: "core",
       enable_wsl: "true",
     });
@@ -250,7 +250,7 @@ describe("opening and closing targets", () => {
 
   it("rejects an unknown Session Profile", async () => {
     const { fetch } = worker();
-    const opened = await api(fetch, "/api/targets/linux/start", {
+    const opened = await api(fetch, "/api/targets/tsrv/linux/start", {
       method: "POST",
       body: JSON.stringify({ session_profile: "plan" }),
     });
@@ -260,31 +260,52 @@ describe("opening and closing targets", () => {
 
   it("treats closing an already off target as success", async () => {
     const { fetch } = worker();
-    const closed = await api(fetch, "/api/targets/windows/stop", { method: "POST" });
+    const closed = await api(fetch, "/api/targets/tsrv/windows/stop", { method: "POST" });
     expect(closed.status).toBe(200);
-    expect(await closed.json()).toMatchObject({ id: "windows", state: "off" });
+    expect(await closed.json()).toMatchObject({ id: "tsrv/windows", state: "off" });
   });
 });
 
 describe("GitHub run observer", () => {
+  it("keeps an active target readable when Observer output is unavailable", async () => {
+    const run = {
+      id: 44,
+      status: "in_progress",
+      conclusion: null,
+      htmlUrl: "https://github.com/autoactions/tsrv/actions/runs/44",
+      startedAt: "2026-08-18T10:00:00Z",
+      openedBy: "octo",
+    };
+    const github = {
+      latestRun: async () => run,
+      dispatch: async () => {},
+      cancel: async () => {},
+      observerOutput: async () => { throw new Error("Artifact is not available"); },
+    };
+    const fetchImpl = createWorker({ sessionPassword, github, catalog: [linuxTarget] });
+    const response = await api(fetchImpl, "/api/targets/tsrv/linux");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ id: "tsrv/linux", state: "on", facts: [] });
+  });
+
   it("reports an in-progress debug session on without Locator facts", async () => {
     const github = new FakeGitHub();
-    github.runs.linux = {
+    github.runs["tsrv/linux"] = {
       id: 42,
       status: "in_progress",
       conclusion: null,
-      htmlUrl: "https://github.com/autoactions/debug-session/actions/runs/42",
+      htmlUrl: "https://github.com/autoactions/tsrv/actions/runs/42",
       startedAt: "2026-08-18T10:00:00Z",
       openedBy: "octo",
     };
     const { fetch } = worker(github);
-    const response = await api(fetch, "/api/targets/linux");
+    const response = await api(fetch, "/api/targets/tsrv/linux");
     expect(await response.json()).toMatchObject({
-      id: "linux",
+      id: "tsrv/linux",
       label: "Linux",
-      repo: "autoactions/debug-session",
+      repo: "autoactions/tsrv",
       state: "on",
-      runUrl: "https://github.com/autoactions/debug-session/actions/runs/42",
+      runUrl: "https://github.com/autoactions/tsrv/actions/runs/42",
       startedAt: "2026-08-18T10:00:00Z",
       openedBy: "octo",
       facts: [],
@@ -293,19 +314,19 @@ describe("GitHub run observer", () => {
 
   it("shows Locator Block facts when the debug session publishes them", async () => {
     const github = new FakeGitHub();
-    github.runs.linux = {
+    github.runs["tsrv/linux"] = {
       id: 42,
       status: "in_progress",
       conclusion: null,
-      htmlUrl: "https://github.com/autoactions/debug-session/actions/runs/42",
+      htmlUrl: "https://github.com/autoactions/tsrv/actions/runs/42",
       startedAt: "2026-08-18T10:00:00Z",
       openedBy: "octo",
     };
     github.outputs[42] = "## Locators\n- SSH: runner@100.64.0.10\n- RDP: 100.64.0.10:3389\n";
     const { fetch } = worker(github);
-    const response = await api(fetch, "/api/targets/linux");
+    const response = await api(fetch, "/api/targets/tsrv/linux");
     expect(await response.json()).toMatchObject({
-      id: "linux",
+      id: "tsrv/linux",
       state: "on",
       facts: [
         { label: "SSH", value: "runner@100.64.0.10" },
@@ -314,20 +335,44 @@ describe("GitHub run observer", () => {
     });
   });
 
-  it("decrypts a tsrv Session Password without exposing its envelope", async () => {
+  it("keeps public Locator facts on a debug session when Sensitive Facts cannot be decrypted", async () => {
     const github = new FakeGitHub();
-    github.runs.linux = {
-      id: 43,
+    github.runs["tsrv/linux"] = {
+      id: 46,
       status: "in_progress",
       conclusion: null,
-      htmlUrl: "https://github.com/autoactions/debug-session/actions/runs/43",
+      htmlUrl: "https://github.com/autoactions/tsrv/actions/runs/46",
       startedAt: "2026-08-18T10:00:00Z",
       openedBy: "octo",
     };
-    const encrypted = "enc:v1:AQIDBAUGBwgJCgsMDQ4PEA:ERITFBUWFxgZGhsc:8XYgVKM3GYZMpY15qf4NG8huLDN3f-XD3WdOmQw";
+    const encrypted = "enc:v2:AQIDBAUGBwgJCgsMDQ4PEA:ERITFBUWFxgZGhsc:Shap0xyfNasoDIc5tPqGpuH_Muzis2PBzP3gu_A";
+    github.outputs[46] = `## Locators\n- SSH: runner@100.64.0.10\n\n## Sensitive Facts\n- Session Password: ${encrypted}\n`;
+    const { fetch } = worker(github, DEBUG_CATALOG, "other-session-password");
+    const response = await api(fetch, "/api/targets/tsrv/linux", {
+      headers: { Authorization: "Bearer other-session-password" },
+    });
+    const body = await response.json();
+    expect(body).toMatchObject({
+      state: "on",
+      facts: [{ label: "SSH", value: "runner@100.64.0.10" }],
+    });
+    expect(JSON.stringify(body)).not.toContain(encrypted);
+  });
+
+  it("decrypts a tsrv Session Password without exposing its envelope", async () => {
+    const github = new FakeGitHub();
+    github.runs["tsrv/linux"] = {
+      id: 43,
+      status: "in_progress",
+      conclusion: null,
+      htmlUrl: "https://github.com/autoactions/tsrv/actions/runs/43",
+      startedAt: "2026-08-18T10:00:00Z",
+      openedBy: "octo",
+    };
+    const encrypted = "enc:v2:AQIDBAUGBwgJCgsMDQ4PEA:ERITFBUWFxgZGhsc:Shap0xyfNasoDIc5tPqGpuH_Muzis2PBzP3gu_A";
     github.outputs[43] = `## Locators\n- SSH: runner@100.64.0.10\n\n## Sensitive Facts\n- Session Password: ${encrypted}\n`;
     const { fetch } = worker(github);
-    const response = await api(fetch, "/api/targets/linux");
+    const response = await api(fetch, "/api/targets/tsrv/linux");
     const body = await response.json();
     expect(body).toMatchObject({
       state: "on",
@@ -339,19 +384,41 @@ describe("GitHub run observer", () => {
     expect(JSON.stringify(body)).not.toContain(encrypted);
   });
 
+  it("recovers facts on the next refresh after the Locator Artifact appears", async () => {
+    const github = new FakeGitHub();
+    github.runs["tsrv/linux"] = {
+      id: 45,
+      status: "in_progress",
+      conclusion: null,
+      htmlUrl: "https://github.com/autoactions/tsrv/actions/runs/45",
+      startedAt: "2026-08-18T10:00:00Z",
+      openedBy: "octo",
+    };
+    const { fetch } = worker(github);
+    const before = await api(fetch, "/api/targets/tsrv/linux");
+    expect(await before.json()).toMatchObject({ state: "on", facts: [] });
+
+    github.outputs[45] = "## Locators\n- SSH: runner@100.64.0.10\n";
+    const after = await api(fetch, "/api/targets/tsrv/linux");
+    expect(await after.json()).toMatchObject({
+      state: "on",
+      facts: [{ label: "SSH", value: "runner@100.64.0.10" }],
+    });
+  });
+
   it("stays starting while the GitHub run is queued", async () => {
     const github = new FakeGitHub();
-    github.runs.linux = {
+    github.runs["tsrv/linux"] = {
       id: 3,
       status: "queued",
       conclusion: null,
-      htmlUrl: "https://github.com/autoactions/debug-session/actions/runs/3",
+      htmlUrl: "https://github.com/autoactions/tsrv/actions/runs/3",
       startedAt: null,
       openedBy: "octo",
     };
     const { fetch } = worker(github);
-    const response = await api(fetch, "/api/targets/linux");
-    expect(await response.json()).toMatchObject({ id: "linux", state: "starting", facts: [] });
+    const response = await api(fetch, "/api/targets/tsrv/linux");
+    expect(await response.json()).toMatchObject({ id: "tsrv/linux", state: "starting", facts: [] });
   });
 });
 
@@ -419,7 +486,7 @@ describe("temporary service targets", () => {
       startedAt: "2026-08-25T10:00:00Z",
       openedBy: "octo",
     };
-    const encrypted = "enc:v1:AQIDBAUGBwgJCgsMDQ4PEA:ERITFBUWFxgZGhsc:7mosD7YqEc4XsI5nqewgkCdIzdOxiAbQcjVX31Ks";
+    const encrypted = "enc:v2:AQIDBAUGBwgJCgsMDQ4PEA:ERITFBUWFxgZGhsc:VQqliAmCPeNzGYQntK9gCv1aF11urOp12WcrMSpu";
     github.outputs[16] = `## Locators\n- Session Address: https://session-test.trycloudflare.com\n\n## Sensitive Facts\n- Motrix Operator Token: ${encrypted}\n`;
     const valid = worker(github, SERVICE_CATALOG, "shared-session-password");
     expect(await (await api(valid.fetch, "/api/targets/motrix")).json()).toMatchObject({

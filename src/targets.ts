@@ -98,11 +98,11 @@ async function observedOutput(
     return { facts: [], hasLocators: false, sensitiveValid: true };
   }
   try {
-    const output = (await github.jobOutput?.(target.id, run.id)) ?? "";
+    const output = (await github.observerOutput?.(target.id, run.id)) ?? "";
     const locators = parseLocatorBlock(output);
     const sensitive = await decryptSensitiveFacts(output, sessionPassword);
     return {
-      facts: sensitive.valid ? [...locators, ...sensitive.facts] : locators,
+      facts: [...locators, ...(sensitive.valid ? sensitive.facts : [])],
       hasLocators: locators.length > 0,
       sensitiveValid: sensitive.valid,
     };

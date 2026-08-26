@@ -1,0 +1,3 @@
+# Live Debug Sessions carry Locator Blocks in a run-scoped Artifact
+
+An active GitHub Actions step does not expose a usable check summary, and its live logs endpoint can return 404, so a Debug Session uploads `session-deck-output.md` as the short-lived `session-deck-locators` Artifact after provisioning and before its long wait. Session Deck reads and validates that Artifact through GitHub; it does not accept a callback, which would add a second machine-to-control-plane protocol. This supersedes the live job-output transport selected in ADR-0005 and ADR-0006 for Debug Sessions. Temporary Service Sessions use the same Artifact (ADR-0012).
