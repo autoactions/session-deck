@@ -29,10 +29,10 @@ const windowsOff = {
   inputs: windowsTarget.inputs,
 };
 
-const adminToken = "test-admin-token";
+const sessionPassword = "shared-session-password";
 
-function worker(github = new FakeGitHub(), catalog = DEBUG_CATALOG) {
-  return { github, fetch: createWorker({ adminToken, github, catalog }) };
+function worker(github = new FakeGitHub(), catalog = DEBUG_CATALOG, password = sessionPassword) {
+  return { github, fetch: createWorker({ sessionPassword: password, github, catalog }) };
 }
 
 function api(
@@ -42,26 +42,38 @@ function api(
 ): Promise<Response> {
   const headers = new Headers(init.headers);
   if (!headers.has("Authorization")) {
-    headers.set("Authorization", `Bearer ${adminToken}`);
+    headers.set("Authorization", `Bearer ${sessionPassword}`);
   }
   return fetchImpl(new Request(`https://control.test${path}`, { ...init, headers }));
 }
 
 describe("target API auth", () => {
-  it("rejects target reads without an Admin Token", async () => {
+  const routes = [
+    ["GET", "/api/targets"],
+    ["GET", "/api/targets/linux"],
+    ["POST", "/api/targets/linux/start"],
+    ["POST", "/api/targets/linux/stop"],
+  ] as const;
+
+  it.each(routes)("rejects %s %s without a Session Password", async (method, path) => {
     const { fetch } = worker();
-    const response = await fetch(new Request("https://control.test/api/targets"));
+    const response = await fetch(new Request(`https://control.test${path}`, { method }));
     expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ error: "unauthorized" });
   });
 
-  it("rejects target reads with the wrong Admin Token", async () => {
-    const { fetch } = worker();
-    const response = await fetch(
-      new Request("https://control.test/api/targets", {
-        headers: { Authorization: "Bearer nope" },
-      }),
-    );
+  it.each(routes)("rejects %s %s with the wrong Session Password", async (method, path) => {
+    const github = new FakeGitHub();
+    github.latestRun = async () => { throw new Error("GitHub must not be queried"); };
+    github.dispatch = async () => { throw new Error("GitHub must not be dispatched"); };
+    github.cancel = async () => { throw new Error("GitHub must not be cancelled"); };
+    const { fetch } = worker(github);
+    const response = await fetch(new Request(`https://control.test${path}`, {
+      method,
+      headers: { Authorization: "Bearer wrong-password" },
+    }));
     expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ error: "unauthorized" });
   });
 });
 
@@ -137,7 +149,7 @@ describe("opening and closing targets", () => {
       dispatch: async () => {},
       cancel: async () => {},
     };
-    const fetchImpl = createWorker({ adminToken, github, catalog: DEBUG_CATALOG });
+    const fetchImpl = createWorker({ sessionPassword, github, catalog: DEBUG_CATALOG });
     const opened = await api(fetchImpl, "/api/targets/linux/start", { method: "POST" });
     expect(await opened.json()).toMatchObject({ id: "linux", state: "starting", facts: [] });
   });
@@ -151,7 +163,7 @@ describe("opening and closing targets", () => {
       },
       cancel: async () => {},
     };
-    const fetchImpl = createWorker({ adminToken, github, catalog: DEBUG_CATALOG });
+    const fetchImpl = createWorker({ sessionPassword, github, catalog: DEBUG_CATALOG });
     await api(fetchImpl, "/api/targets/linux/start", { method: "POST" });
     const again = await api(fetchImpl, "/api/targets/linux/start", { method: "POST" });
     expect(dispatches).toBe(1);
@@ -302,6 +314,31 @@ describe("GitHub run observer", () => {
     });
   });
 
+  it("decrypts a tsrv Session Password without exposing its envelope", async () => {
+    const github = new FakeGitHub();
+    github.runs.linux = {
+      id: 43,
+      status: "in_progress",
+      conclusion: null,
+      htmlUrl: "https://github.com/autoactions/debug-session/actions/runs/43",
+      startedAt: "2026-08-18T10:00:00Z",
+      openedBy: "octo",
+    };
+    const encrypted = "enc:v1:AQIDBAUGBwgJCgsMDQ4PEA:ERITFBUWFxgZGhsc:8XYgVKM3GYZMpY15qf4NG8huLDN3f-XD3WdOmQw";
+    github.outputs[43] = `## Locators\n- SSH: runner@100.64.0.10\n\n## Sensitive Facts\n- Session Password: ${encrypted}\n`;
+    const { fetch } = worker(github);
+    const response = await api(fetch, "/api/targets/linux");
+    const body = await response.json();
+    expect(body).toMatchObject({
+      state: "on",
+      facts: [
+        { label: "SSH", value: "runner@100.64.0.10" },
+        { label: "Session Password", value: "private-value" },
+      ],
+    });
+    expect(JSON.stringify(body)).not.toContain(encrypted);
+  });
+
   it("stays starting while the GitHub run is queued", async () => {
     const github = new FakeGitHub();
     github.runs.linux = {
@@ -370,6 +407,40 @@ describe("temporary service targets", () => {
       openedBy: "octo",
       facts: [{ label: "Session Address", value: "https://session-test.trycloudflare.com" }],
     });
+  });
+
+  it("requires a valid encrypted fact before reporting a service target on", async () => {
+    const github = new FakeGitHub();
+    github.runs.motrix = {
+      id: 16,
+      status: "in_progress",
+      conclusion: null,
+      htmlUrl: "https://github.com/autoactions/tsvc/actions/runs/16",
+      startedAt: "2026-08-25T10:00:00Z",
+      openedBy: "octo",
+    };
+    const encrypted = "enc:v1:AQIDBAUGBwgJCgsMDQ4PEA:ERITFBUWFxgZGhsc:7mosD7YqEc4XsI5nqewgkCdIzdOxiAbQcjVX31Ks";
+    github.outputs[16] = `## Locators\n- Session Address: https://session-test.trycloudflare.com\n\n## Sensitive Facts\n- Motrix Operator Token: ${encrypted}\n`;
+    const valid = worker(github, SERVICE_CATALOG, "shared-session-password");
+    expect(await (await api(valid.fetch, "/api/targets/motrix")).json()).toMatchObject({
+      state: "on",
+      facts: [
+        { label: "Session Address", value: "https://session-test.trycloudflare.com" },
+        { label: "Motrix Operator Token", value: "one-time-token" },
+      ],
+    });
+
+    const invalid = worker(github, SERVICE_CATALOG, "wrong-password");
+    const invalidBody = await (await api(invalid.fetch, "/api/targets/motrix", {
+      headers: { Authorization: "Bearer wrong-password" },
+    })).json();
+    expect(invalidBody).toMatchObject({ state: "starting", facts: [] });
+    expect(JSON.stringify(invalidBody)).not.toContain(encrypted);
+
+    github.outputs[16] = `## Sensitive Facts\n- Motrix Operator Token: ${encrypted}\n`;
+    const missingLocator = worker(github, SERVICE_CATALOG, "shared-session-password");
+    expect(await (await api(missingLocator.fetch, "/api/targets/motrix")).json())
+      .toMatchObject({ state: "starting", facts: [] });
   });
 
   it("does not start a second openlist run while one is active", async () => {

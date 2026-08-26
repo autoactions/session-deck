@@ -1,0 +1,5 @@
+# Session projects publish operator-facing secrets as encrypted Sensitive Facts
+
+Every attached session project may publish a `## Sensitive Facts` block beside its public Locator Block. Each `- Label: enc:v1:...` value uses PBKDF2-HMAC-SHA256 (600,000 iterations, a random 16-byte salt) and AES-256-GCM (a random 12-byte IV), with the protocol version and Label authenticated as additional data. Binary fields use unpadded Base64URL. The session projects and this plane share `SESSION_PASSWORD`; it is both the control plane's sole human access credential and the cross-repository decryption key. GitHub observes only ciphertext, and the Worker authenticates the same password before decrypting facts for the browser or API.
+
+The protocol is repository-independent: this plane does not match repository names or labels. A malformed or unauthenticated block is never exposed. It prevents a job-output-observed Target from becoming `on`; a run-observed Debug Session keeps its run-derived state but omits the invalid facts. Locator values remain public and do not use this envelope.

@@ -7,7 +7,7 @@ import { MARK_SVG, renderPage } from "./page.ts";
 import { isActive, listTargets, readyStatus, viewTarget } from "./targets.ts";
 
 export type WorkerDeps = {
-  adminToken: string;
+  sessionPassword: string;
   github: GitHubActions;
   catalog?: Target[];
   repos?: string[];
@@ -49,13 +49,13 @@ async function route(
   }
 
   if (url.pathname.startsWith("/api/")) {
-    if (!deps.adminToken || !hasAdminToken(request, deps.adminToken)) {
+    if (!deps.sessionPassword || !hasSessionPassword(request, deps.sessionPassword)) {
       return json({ error: "unauthorized" }, 401);
     }
   }
 
   if (request.method === "GET" && url.pathname === "/api/targets") {
-    return json({ targets: await listTargets(deps.catalog, deps.github, intents) });
+    return json({ targets: await listTargets(deps.catalog, deps.github, intents, deps.sessionPassword) });
   }
 
   const targetMatch = matchTargetPath(url.pathname);
@@ -69,7 +69,7 @@ async function route(
 
     async function shown() {
       const run = await deps.github.latestRun(target.id);
-      return viewTarget(target, run, intents, await readyStatus(target, run, deps.github));
+      return viewTarget(target, run, intents, await readyStatus(target, run, deps.github, deps.sessionPassword));
     }
 
     if (request.method === "GET" && !action) {
@@ -97,13 +97,13 @@ async function route(
         target,
         run,
         intents,
-        await readyStatus(target, run, deps.github),
+        await readyStatus(target, run, deps.github, deps.sessionPassword),
       );
       if (!isActive(current.state) || !run) return json(current);
       await deps.github.cancel(target.id, run.id);
       intents.markStopping(run.id);
       return json(
-        viewTarget(target, run, intents, await readyStatus(target, run, deps.github)),
+        viewTarget(target, run, intents, await readyStatus(target, run, deps.github, deps.sessionPassword)),
       );
     }
   }
@@ -123,9 +123,9 @@ function json(data: unknown, status = 200): Response {
   return Response.json(data, { status, headers: { "Cache-Control": "no-store" } });
 }
 
-function hasAdminToken(request: Request, adminToken: string): boolean {
+function hasSessionPassword(request: Request, sessionPassword: string): boolean {
   const header = request.headers.get("Authorization");
-  return header === `Bearer ${adminToken}`;
+  return header === `Bearer ${sessionPassword}`;
 }
 
 async function readJson(request: Request): Promise<{ ok: true; value: unknown } | { ok: false }> {

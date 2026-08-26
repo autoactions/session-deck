@@ -11,4 +11,4 @@ zone_name = "lirtual.dpdns.org"
 GITHUB_REPO = "autoactions/debug-session,autoactions/tsvc"
 
 [secrets]
-required = ["ADMIN_TOKEN", "GITHUB_TOKEN"]
+required = ["SESSION_PASSWORD", "GITHUB_TOKEN"]

@@ -4,8 +4,8 @@ import { combineGitHub, createGitHubActions, createGitHubRepoAccess } from "./gi
 import { createWorker } from "./worker.ts";
 
 export type Env = {
-  ADMIN_TOKEN: string;
   GITHUB_TOKEN: string;
+  SESSION_PASSWORD: string;
   GITHUB_REPO: string;
   GITHUB_REF?: string;
 };
@@ -19,7 +19,7 @@ export default {
       request.method === "GET" && (url.pathname === "/" || url.pathname === "/assets/mark.svg");
     if (pageOnly) {
       return createWorker({
-        adminToken: env.ADMIN_TOKEN,
+        sessionPassword: env.SESSION_PASSWORD,
         repos,
         catalog: [],
         github: combineGitHub([]),
@@ -42,7 +42,7 @@ export default {
         )
       : [];
     return createWorker({
-      adminToken: env.ADMIN_TOKEN,
+      sessionPassword: env.SESSION_PASSWORD,
       catalog,
       repos,
       github: combineGitHub(clients),

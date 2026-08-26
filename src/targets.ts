@@ -2,6 +2,7 @@ import type { InputSpec, Target } from "./catalog.ts";
 import type { GitHubActions, WorkflowRun } from "./github.ts";
 import type { TargetIntents } from "./intents.ts";
 import { parseLocatorBlock, type LocatorFact } from "./locators.ts";
+import { decryptSensitiveFacts } from "./sensitive-facts.ts";
 
 export type TargetState = "off" | "starting" | "on" | "stopping" | "failed";
 
@@ -87,12 +88,26 @@ function isPending(run: WorkflowRun): boolean {
   return run.status === "queued" || run.status === "waiting" || run.status === "requested" || run.status === "pending";
 }
 
-async function locatorsFrom(target: Target, run: WorkflowRun | null, github: GitHubActions): Promise<LocatorFact[]> {
-  if (!run || isPending(run) || run.status === "completed") return [];
+async function observedOutput(
+  target: Target,
+  run: WorkflowRun | null,
+  github: GitHubActions,
+  sessionPassword: string,
+): Promise<{ facts: LocatorFact[]; hasLocators: boolean; sensitiveValid: boolean }> {
+  if (!run || isPending(run) || run.status === "completed") {
+    return { facts: [], hasLocators: false, sensitiveValid: true };
+  }
   try {
-    return parseLocatorBlock((await github.jobOutput?.(target.id, run.id)) ?? "");
+    const output = (await github.jobOutput?.(target.id, run.id)) ?? "";
+    const locators = parseLocatorBlock(output);
+    const sensitive = await decryptSensitiveFacts(output, sessionPassword);
+    return {
+      facts: sensitive.valid ? [...locators, ...sensitive.facts] : locators,
+      hasLocators: locators.length > 0,
+      sensitiveValid: sensitive.valid,
+    };
   } catch {
-    return [];
+    return { facts: [], hasLocators: false, sensitiveValid: false };
   }
 }
 
@@ -100,26 +115,28 @@ export async function readyStatus(
   target: Target,
   run: WorkflowRun | null,
   github: GitHubActions,
+  sessionPassword = "",
 ): Promise<Observed> {
-  const facts = await locatorsFrom(target, run, github);
+  const observed = await observedOutput(target, run, github, sessionPassword);
   if (target.ready.kind === "github-run") {
-    return { ready: true, facts };
+    return { ready: true, facts: observed.facts };
   }
   if (!run || isPending(run) || run.status === "completed") {
     return { ready: false, facts: [] };
   }
-  return { ready: facts.length > 0, facts };
+  return { ready: observed.hasLocators && observed.sensitiveValid, facts: observed.facts };
 }
 
 export async function listTargets(
   catalog: Target[],
   github: GitHubActions,
   intents?: TargetIntents,
+  sessionPassword = "",
 ): Promise<TargetView[]> {
   return Promise.all(
     catalog.map(async (target) => {
       const run = await github.latestRun(target.id);
-      return viewTarget(target, run, intents, await readyStatus(target, run, github));
+      return viewTarget(target, run, intents, await readyStatus(target, run, github, sessionPassword));
     }),
   );
 }

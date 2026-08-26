@@ -612,8 +612,8 @@ export function renderPage(repos: string[] = []): string {
       ${MARK.replace('class="mark"', 'class="mark gate-mark"')}
       <p class="kicker gate-kicker">Control Plane</p>
       <h1 class="gate-title">Session Deck</h1>
-      <label class="kicker gate-label" for="token">Admin Token</label>
-      <input id="token" class="field" type="password" autocomplete="off" placeholder="Paste the admin secret">
+      <label class="kicker gate-label" for="token">Session Password</label>
+      <input id="token" class="field" type="password" autocomplete="off" placeholder="Enter the session password">
       <button class="btn btn-primary gate-enter" id="enter" type="button">Enter</button>
       <p class="gate-error" id="gate-error"></p>
     </div>
@@ -669,7 +669,7 @@ export function renderPage(repos: string[] = []): string {
       </section>
       <section id="view-api" class="panel hidden">
         <h2>API</h2>
-        <p class="lede">Four Bearer routes. Authorization: Bearer &lt;Admin Token&gt;.</p>
+        <p class="lede">Four Bearer routes. Authorization: Bearer &lt;Session Password&gt;.</p>
         <div class="routes">
           <div class="route">
             <div class="method">GET</div>
@@ -683,7 +683,7 @@ export function renderPage(repos: string[] = []): string {
             <div class="method">GET</div>
             <div>
               <div class="path">/api/targets/{id}</div>
-              <p class="blurb">Read one target. state is off / starting / on / stopping / failed. on means the observer found a live Locator. facts are Locator Block rows.</p>
+              <p class="blurb">Read one target. state is off / starting / on / stopping / failed. facts combine public Locator rows with authenticated, decrypted Sensitive Facts.</p>
             </div>
             <button class="btn btn-quiet" type="button" data-copy="/api/targets/{id}">Copy</button>
           </div>
@@ -721,7 +721,7 @@ export function renderPage(repos: string[] = []): string {
   </div>
   <div id="toast" class="toast hidden" role="status"></div>
   <script>
-    const STORAGE = "session-deck-admin-token";
+    const STORAGE = "session-deck-session-password";
     const PROFILE_KEY = "session-deck-profiles";
     const JOURNAL_KEY = "session-deck-journal";
     const TARGET_KEY = "session-deck-target";
@@ -1041,7 +1041,7 @@ export function renderPage(repos: string[] = []): string {
         }
         fact.classList.toggle("hidden", !value);
       }
-      function setLocatorFacts(card, facts) {
+      function setFacts(card, facts) {
         const list = card.querySelector(".facts");
         const left = card.querySelector("[data-left-fact]");
         if (!list || !left) return;
@@ -1065,7 +1065,7 @@ export function renderPage(repos: string[] = []): string {
         });
       }
       setFact("opened", target.openedBy || "");
-      setLocatorFacts(card, ready && Array.isArray(target.facts) ? target.facts : []);
+      setFacts(card, ready && Array.isArray(target.facts) ? target.facts : []);
       if (ready && target.startedAt) {
         const started = Date.parse(target.startedAt);
         setFact("left", formatDuration(started + ${SESSION_DEADLINE_MINUTES} * 60 * 1000 - Date.now()));
@@ -1127,7 +1127,7 @@ export function renderPage(repos: string[] = []): string {
 
     async function enter() {
       if (!token()) {
-        gateError.textContent = "Admin token required";
+        gateError.textContent = "Session password required";
         return;
       }
       try {
@@ -1136,7 +1136,7 @@ export function renderPage(repos: string[] = []): string {
         gateError.textContent = "";
         unlock();
       } catch (err) {
-        gateError.textContent = err.message === "unauthorized" ? "Invalid admin token" : err.message;
+        gateError.textContent = err.message === "unauthorized" ? "Invalid session password" : err.message;
       }
     }
 
@@ -1151,8 +1151,8 @@ export function renderPage(repos: string[] = []): string {
       const keys = Object.keys(chosen);
       dialogTitle.textContent = "Open " + item.label;
       dialogHint.textContent = keys.length
-        ? "Open " + item.label + " with " + keys.map(function (key) { return kicker(key) + " " + chosen[key]; }).join(" and ") + ". Credentials stay in the GitHub repository."
-        : "Open a " + item.label + " Session. Credentials stay in the GitHub repository.";
+        ? "Open " + item.label + " with " + keys.map(function (key) { return kicker(key) + " " + chosen[key]; }).join(" and ") + ". Access details appear when the Session is on."
+        : "Open a " + item.label + " Session. Access details appear when it is on.";
       dialog.classList.remove("hidden");
     }
 

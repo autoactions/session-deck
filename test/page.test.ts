@@ -5,7 +5,7 @@ import { FakeGitHub } from "./fake-github.ts";
 describe("management page", () => {
   it("serves a public shell that mounts discovered targets after unlock", async () => {
     const fetchImpl = createWorker({
-      adminToken: "test-admin-token",
+      sessionPassword: "shared-session-password",
       github: new FakeGitHub(),
       repos: ["autoactions/debug-session", "autoactions/tsvc"],
     });
@@ -26,7 +26,13 @@ describe("management page", () => {
     expect(html).not.toContain("data-slot=");
     expect(html).toContain("Instrument Serif");
     expect(html).toContain("IBM Plex Mono");
-    expect(html).toContain("Admin Token");
+    expect(html).toContain(">Session Password</label>");
+    expect(html).toContain('placeholder="Enter the session password"');
+    expect(html).toContain('const STORAGE = "session-deck-session-password"');
+    expect(html).toContain("Session password required");
+    expect(html).toContain("Invalid session password");
+    expect(html).not.toContain(["session-deck", "admin", "token"].join("-"));
+    expect(html.toLowerCase()).not.toContain(["admin", "token"].join(" "));
     expect(html).toContain("autoactions/debug-session");
     expect(html).toContain("autoactions/tsvc");
     expect(html).toContain('cache: "no-store"');
@@ -50,7 +56,7 @@ describe("management page", () => {
     expect(html).toContain(">Left<");
     expect(html).toContain(">Elapsed<");
     expect(html).toContain("data-locator-fact");
-    expect(html).toContain("setLocatorFacts");
+    expect(html).toContain("setFacts");
     expect(html).not.toContain("data-address-fact");
     expect(html).not.toContain("data-ssh-channel");
     expect(html).not.toContain("data-rdp-channel");
@@ -65,7 +71,7 @@ describe("management page", () => {
 
   it("serves the concentric mark", async () => {
     const fetchImpl = createWorker({
-      adminToken: "test-admin-token",
+      sessionPassword: "shared-session-password",
       github: new FakeGitHub(),
     });
     const response = await fetchImpl(new Request("https://control.test/assets/mark.svg"));

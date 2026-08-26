@@ -20,6 +20,10 @@ _Avoid_: URL (too broad), endpoint, connection string
 The `## Locators` list a session job publishes when its core services are up. This plane observes those labeled lines and shows them; it does not decide which labels exist.
 _Avoid_: manifest, plugin output, ready callback, address field
 
+**Sensitive Fact**:
+A labeled operator-facing value that a session job publishes only as an authenticated `enc:v1` envelope under `## Sensitive Facts`. This plane decrypts it with the shared Session Password after API authorization.
+_Avoid_: Locator, GitHub Secret, plaintext output
+
 **Observer**:
 The GitHub signal this plane uses to derive a Target's state without a protocol to the machine: run state for a Debug Session, or job output for a Temporary Service Session.
 _Avoid_: callback, webhook, ready ping
@@ -32,9 +36,9 @@ _Avoid_: runner (that is GitHub's name for the VM), job, workflow, debug switch
 A Debug Session Target that holds reserved capacity: `linux` (`debug-session-linux`) and `windows` (`debug-session-windows`).
 _Avoid_: runner, environment, instance, Target (Slot is the reserved-capacity kind)
 
-**Admin Token**:
-The single shared secret that authorizes both the management page and the HTTP API.
-_Avoid_: API key, password, session token
+**Session Password**:
+The control plane's sole human access credential and the decryption key shared across its session projects. It authorizes the management page and HTTP API, while session projects use it to encrypt Sensitive Facts for this plane.
+_Avoid_: API key, per-run token
 
 **Target State**:
 What a Target looks like from the control plane: `off`, `starting`, `on`, `stopping`, `failed`. `on` means a Debug Session's GitHub run is live, or a Temporary Service Session's Observer reports a live Locator.
