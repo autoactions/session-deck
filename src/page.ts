@@ -393,25 +393,6 @@ export function renderPage(repos: string[] = []): string {
       gap: 16px;
       margin: 28px 0 0;
     }
-    .channels {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px 18px;
-      margin-top: 16px;
-    }
-    .channel {
-      font-family: var(--mono);
-      font-size: 10px;
-      font-weight: 500;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-      color: var(--faint);
-    }
-    .channel strong {
-      font-weight: 500;
-      color: var(--fg);
-      margin-left: 8px;
-    }
     .word {
       margin: 0;
       font-family: var(--display);
@@ -438,6 +419,28 @@ export function renderPage(repos: string[] = []): string {
     }
     .facts a { text-decoration: none; border-bottom: 1px solid var(--line-strong); }
     .facts a:hover { border-bottom-color: var(--fg); }
+    .published {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-top: 28px;
+    }
+    .published.is-empty { display: none; }
+    .published dt { color: var(--faint); margin: 0 0 6px; }
+    .published dd {
+      margin: 0;
+      font-size: 14px;
+      overflow-wrap: anywhere;
+    }
+    .published .fact-copy {
+      display: inline;
+      height: auto;
+      text-align: left;
+      white-space: normal;
+    }
     .fact-copy {
       min-height: 0;
       padding: 0;
@@ -895,7 +898,7 @@ export function renderPage(repos: string[] = []): string {
         }).join("");
         return '<div class="opt"><span class="kicker">' + kicker(spec.name) + '</span><div class="seg" role="radiogroup" aria-label="' + spec.name + '">' + buttons + "</div></div>";
       }).join("");
-      return '<article class="machine' + (selected ? "" : " hidden") + '" data-target="' + target.id + '">' + (opts ? '<div class="opts">' + opts + "</div>" : "") + '<div class="status"><div class="word is-off" data-word>off</div><span class="led" data-led></span></div><dl class="facts is-empty"><div class="hidden" data-opened-fact><dt>For</dt><dd data-opened></dd></div><div class="hidden" data-run-fact><dt data-run-label>Last run</dt><dd data-run>—</dd></div><div class="hidden" data-left-fact><dt>Left</dt><dd data-left></dd></div><div class="hidden" data-elapsed-fact><dt>Elapsed</dt><dd data-elapsed></dd></div></dl><div class="actions"><button class="btn btn-primary" data-action="start" type="button">Open</button><button class="btn btn-ghost" data-action="stop" type="button" disabled>Close</button></div></article>';
+      return '<article class="machine' + (selected ? "" : " hidden") + '" data-target="' + target.id + '">' + (opts ? '<div class="opts">' + opts + "</div>" : "") + '<div class="status"><div class="word is-off" data-word>off</div><span class="led" data-led></span></div><dl class="facts is-empty"><div class="hidden" data-opened-fact><dt>For</dt><dd data-opened></dd></div><div class="hidden" data-run-fact><dt data-run-label>Last run</dt><dd data-run>—</dd></div><div class="hidden" data-left-fact><dt>Left</dt><dd data-left></dd></div><div class="hidden" data-elapsed-fact><dt>Elapsed</dt><dd data-elapsed></dd></div></dl><dl class="published is-empty"></dl><div class="actions"><button class="btn btn-primary" data-action="start" type="button">Open</button><button class="btn btn-ghost" data-action="stop" type="button" disabled>Close</button></div></article>';
     }
 
     function loadJournal() {
@@ -1041,15 +1044,13 @@ export function renderPage(repos: string[] = []): string {
         }
         fact.classList.toggle("hidden", !value);
       }
-      function setFacts(card, facts) {
-        const list = card.querySelector(".facts");
-        const left = card.querySelector("[data-left-fact]");
-        if (!list || !left) return;
-        card.querySelectorAll("[data-locator-fact]").forEach(function (row) { row.remove(); });
+      function setPublished(card, facts) {
+        const list = card.querySelector(".published");
+        if (!list) return;
+        list.replaceChildren();
         facts.forEach(function (fact) {
           if (!fact || !fact.label || !fact.value) return;
           const row = document.createElement("div");
-          row.setAttribute("data-locator-fact", "");
           const dt = document.createElement("dt");
           dt.textContent = fact.label;
           const dd = document.createElement("dd");
@@ -1061,11 +1062,12 @@ export function renderPage(repos: string[] = []): string {
           dd.appendChild(button);
           row.appendChild(dt);
           row.appendChild(dd);
-          list.insertBefore(row, left);
+          list.appendChild(row);
         });
+        list.classList.toggle("is-empty", !list.children.length);
       }
       setFact("opened", target.openedBy || "");
-      setFacts(card, ready && Array.isArray(target.facts) ? target.facts : []);
+      setPublished(card, ready && Array.isArray(target.facts) ? target.facts : []);
       if (ready && target.startedAt) {
         const started = Date.parse(target.startedAt);
         setFact("left", formatDuration(started + ${SESSION_DEADLINE_MINUTES} * 60 * 1000 - Date.now()));

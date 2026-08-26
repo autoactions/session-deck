@@ -56,8 +56,10 @@ describe("management page", () => {
     expect(html).toContain(">For<");
     expect(html).toContain(">Left<");
     expect(html).toContain(">Elapsed<");
-    expect(html).toContain("data-locator-fact");
-    expect(html).toContain("setFacts");
+    expect(html).toContain('class="published is-empty"');
+    expect(html).toContain("function setPublished");
+    expect(html).not.toContain("data-locator-fact");
+    expect(html).not.toContain("setFacts");
     expect(html).not.toContain("data-address-fact");
     expect(html).not.toContain("data-ssh-channel");
     expect(html).not.toContain("data-rdp-channel");
