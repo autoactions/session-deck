@@ -62,8 +62,12 @@ describe("management page", () => {
     expect(html).toContain('fact.sensitive === true');
     expect(html).toContain('parsed.protocol !== "http:"');
     expect(html).toContain('link.rel = "noopener noreferrer"');
-    expect(html).toContain('quietButton("Copy")');
+    expect(html.match(/quietButton\("Copy"\)/g)).toHaveLength(1);
     expect(html).toContain('sensitive ? "Copy failed" : value');
+    expect(html).toContain('value.disabled = !shown');
+    expect(html).toContain('shown ? "Copy " + fact.label : fact.label + " hidden"');
+    expect(html).toContain('if (revealedFacts.has(secretKey)) copyValue(fact.value, true)');
+    expect(html).not.toContain('className = "published-actions"');
     expect(html).toContain('targetId + "\\u0000"');
     expect(html).not.toContain("\u0000");
     expect(html).not.toContain("data-locator-fact");

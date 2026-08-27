@@ -443,10 +443,10 @@ export function renderPage(repos: string[] = []): string {
     }
     .published-row dt { flex-basis: 100%; }
     .published-value { min-width: 0; overflow-wrap: anywhere; }
-    .published-actions { display: inline-flex; gap: 4px; }
     .published-link { text-decoration: none; border-bottom: 1px solid var(--line-strong); }
     .published-link:hover { border-bottom-color: var(--fg); }
     .secret-mask { font-family: var(--mono); letter-spacing: 0.08em; }
+    .secret-copy:disabled { opacity: 1; cursor: default; color: var(--fg); }
     .published .fact-copy {
       display: inline;
       height: auto;
@@ -1100,32 +1100,30 @@ export function renderPage(repos: string[] = []): string {
           if (fact.sensitive === true) {
             const secretKey = targetId + "\\u0000" + fact.label + "\\u0000" + index;
             activeSecretKeys.add(secretKey);
-            const value = document.createElement("span");
-            value.className = "secret-mask";
-            const actions = document.createElement("span");
-            actions.className = "published-actions";
+            const value = quietButton("");
+            value.classList.add("fact-copy", "secret-copy");
             const reveal = quietButton("");
-            const copy = quietButton("Copy");
             function paintSecret() {
               const shown = revealedFacts.has(secretKey);
               value.textContent = shown ? fact.value : "••••••••";
               value.classList.toggle("secret-mask", !shown);
+              value.disabled = !shown;
+              value.setAttribute("aria-label", shown ? "Copy " + fact.label : fact.label + " hidden");
               reveal.textContent = shown ? "Hide" : "Show";
               reveal.setAttribute("aria-pressed", shown ? "true" : "false");
               reveal.setAttribute("aria-label", (shown ? "Hide " : "Show ") + fact.label);
             }
+            value.addEventListener("click", function () {
+              if (revealedFacts.has(secretKey)) copyValue(fact.value, true);
+            });
             reveal.addEventListener("click", function () {
               if (revealedFacts.has(secretKey)) revealedFacts.delete(secretKey);
               else revealedFacts.add(secretKey);
               paintSecret();
             });
-            copy.setAttribute("aria-label", "Copy " + fact.label);
-            copy.addEventListener("click", function () { copyValue(fact.value, true); });
             paintSecret();
-            actions.appendChild(reveal);
-            actions.appendChild(copy);
             dd.appendChild(value);
-            dd.appendChild(actions);
+            dd.appendChild(reveal);
           } else {
             const href = httpUrl(fact.value);
             if (href) {
