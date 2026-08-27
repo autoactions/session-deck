@@ -58,6 +58,12 @@ describe("management page", () => {
     expect(html).toContain(">Elapsed<");
     expect(html).toContain('class="published is-empty"');
     expect(html).toContain("function setPublished");
+    expect(html).toContain("const revealedFacts = new Set()");
+    expect(html).toContain('fact.sensitive === true');
+    expect(html).toContain('parsed.protocol !== "http:"');
+    expect(html).toContain('link.rel = "noopener noreferrer"');
+    expect(html).toContain('quietButton("Copy")');
+    expect(html).toContain('sensitive ? "Copy failed" : value');
     expect(html).not.toContain("data-locator-fact");
     expect(html).not.toContain("setFacts");
     expect(html).not.toContain("data-address-fact");

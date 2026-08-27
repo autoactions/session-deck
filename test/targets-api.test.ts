@@ -329,8 +329,8 @@ describe("GitHub run observer", () => {
       id: "tsrv/linux",
       state: "on",
       facts: [
-        { label: "SSH", value: "runner@100.64.0.10" },
-        { label: "RDP", value: "100.64.0.10:3389" },
+        { label: "SSH", value: "runner@100.64.0.10", sensitive: false },
+        { label: "RDP", value: "100.64.0.10:3389", sensitive: false },
       ],
     });
   });
@@ -377,8 +377,8 @@ describe("GitHub run observer", () => {
     expect(body).toMatchObject({
       state: "on",
       facts: [
-        { label: "SSH", value: "runner@100.64.0.10" },
-        { label: "Session Password", value: "private-value" },
+        { label: "SSH", value: "runner@100.64.0.10", sensitive: false },
+        { label: "Session Password", value: "private-value", sensitive: true },
       ],
     });
     expect(JSON.stringify(body)).not.toContain(encrypted);
@@ -472,7 +472,7 @@ describe("temporary service targets", () => {
       runUrl: "https://github.com/autoactions/tsvc/actions/runs/15",
       startedAt: "2026-08-25T10:00:00Z",
       openedBy: "octo",
-      facts: [{ label: "Session Address", value: "https://session-test.trycloudflare.com" }],
+      facts: [{ label: "Session Address", value: "https://session-test.trycloudflare.com", sensitive: false }],
     });
   });
 
@@ -492,8 +492,8 @@ describe("temporary service targets", () => {
     expect(await (await api(valid.fetch, "/api/targets/motrix")).json()).toMatchObject({
       state: "on",
       facts: [
-        { label: "Session Address", value: "https://session-test.trycloudflare.com" },
-        { label: "Motrix Operator Token", value: "one-time-token" },
+        { label: "Session Address", value: "https://session-test.trycloudflare.com", sensitive: false },
+        { label: "Motrix Operator Token", value: "one-time-token", sensitive: true },
       ],
     });
 

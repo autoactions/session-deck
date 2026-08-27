@@ -13,11 +13,11 @@ The Targets currently observed from `GITHUB_REPO`. It is a GitHub observation, n
 _Avoid_: manifest, registry, plugin list
 
 **Locator**:
-How an operator reaches a live Target: a reserved Tailscale hostname, SSH/RDP, or a public Session Address.
+Public connection information an operator uses to reach a live Target: a reserved Tailscale hostname, username, SSH/RDP coordinate, or public Session Address.
 _Avoid_: URL (too broad), endpoint, connection string
 
 **Locator Block**:
-The `## Locators` list a session job publishes when its core services are up. Debug Sessions and Temporary Service Sessions carry it in a run-scoped Locator Artifact. This plane shows the labeled lines but does not decide which labels exist.
+The `## Locators` list of public, labeled connection information a session job publishes when its core services are up. This plane shows the lines but does not decide which labels exist.
 _Avoid_: manifest, plugin output, ready callback, address field
 
 **Locator Artifact**:

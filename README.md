@@ -33,6 +33,6 @@ All `/api/*` routes need `Authorization: Bearer <SESSION_PASSWORD>`.
 - `POST /api/targets/{id}/start` — optional JSON for Debug Session Targets: Linux `{ "access_profile": "mini"|"full", "session_profile": "core"|"developer" }`, Windows `{ "session_profile": "core"|"developer", "enable_wsl": true|false }`
 - `POST /api/targets/{id}/stop`
 
-`on` means a Debug Session's GitHub run is in progress, or a Temporary Service Session has published a Locator Block. The panel copies public rows from `## Locators` and decrypts authenticated `enc:v2` rows from `## Sensitive Facts`. Session repos decide the labels; this plane does not keep per-target match rules. Plaintext Sensitive Facts never enter GitHub output.
+`on` means a Debug Session's GitHub run is in progress, or a Temporary Service Session has published a Locator Block. The panel copies public rows from `## Locators` and decrypts authenticated `enc:v2` rows from `## Sensitive Facts`. Each API fact is `{ "label": string, "value": string, "sensitive": boolean }`; the page masks sensitive values by default and only turns non-sensitive HTTP(S) values into links. Session repos decide the labels; this plane does not keep per-target match rules. Plaintext Sensitive Facts never enter GitHub output.
 
 The Debug Session Target IDs are `tsrv/linux` and `tsrv/windows`. The API does not retain the former `debug-session/*` aliases.

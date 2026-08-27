@@ -435,6 +435,18 @@ export function renderPage(repos: string[] = []): string {
       font-size: 14px;
       overflow-wrap: anywhere;
     }
+    .published-row {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 8px 12px;
+    }
+    .published-row dt { flex-basis: 100%; }
+    .published-value { min-width: 0; overflow-wrap: anywhere; }
+    .published-actions { display: inline-flex; gap: 4px; }
+    .published-link { text-decoration: none; border-bottom: 1px solid var(--line-strong); }
+    .published-link:hover { border-bottom-color: var(--fg); }
+    .secret-mask { font-family: var(--mono); letter-spacing: 0.08em; }
     .published .fact-copy {
       display: inline;
       height: auto;
@@ -725,6 +737,7 @@ export function renderPage(repos: string[] = []): string {
   <div id="toast" class="toast hidden" role="status"></div>
   <script>
     const STORAGE = "session-deck-session-password";
+    const revealedFacts = new Set();
     const PROFILE_KEY = "session-deck-profiles";
     const JOURNAL_KEY = "session-deck-journal";
     const TARGET_KEY = "session-deck-target";
@@ -973,6 +986,7 @@ export function renderPage(repos: string[] = []): string {
 
     function lock() {
       sessionStorage.removeItem(STORAGE);
+      revealedFacts.clear();
       tokenInput.value = "";
       gateError.textContent = "";
       app.classList.add("hidden");
@@ -1044,25 +1058,103 @@ export function renderPage(repos: string[] = []): string {
         }
         fact.classList.toggle("hidden", !value);
       }
+      function httpUrl(value) {
+        try {
+          const parsed = new URL(value);
+          if ((parsed.protocol !== "http:" && parsed.protocol !== "https:") || parsed.username || parsed.password) {
+            return "";
+          }
+          return parsed.href;
+        } catch (_) {
+          return "";
+        }
+      }
+      function copyValue(value, sensitive) {
+        navigator.clipboard.writeText(value).then(function () {
+          toast("Copied");
+        }).catch(function () {
+          toast(sensitive ? "Copy failed" : value);
+        });
+      }
+      function quietButton(label) {
+        const button = document.createElement("button");
+        button.className = "btn btn-quiet";
+        button.type = "button";
+        button.textContent = label;
+        return button;
+      }
       function setPublished(card, facts) {
         const list = card.querySelector(".published");
         if (!list) return;
         list.replaceChildren();
-        facts.forEach(function (fact) {
+        const targetId = card.dataset.target || "";
+        const activeSecretKeys = new Set();
+        facts.forEach(function (fact, index) {
           if (!fact || !fact.label || !fact.value) return;
           const row = document.createElement("div");
+          row.className = "published-row";
           const dt = document.createElement("dt");
           dt.textContent = fact.label;
           const dd = document.createElement("dd");
-          const button = document.createElement("button");
-          button.className = "btn btn-quiet fact-copy";
-          button.type = "button";
-          button.textContent = fact.value;
-          button.setAttribute("data-copy", fact.value);
-          dd.appendChild(button);
+          dd.className = "published-value";
+          if (fact.sensitive === true) {
+            const secretKey = targetId + "\u0000" + fact.label + "\u0000" + index;
+            activeSecretKeys.add(secretKey);
+            const value = document.createElement("span");
+            value.className = "secret-mask";
+            const actions = document.createElement("span");
+            actions.className = "published-actions";
+            const reveal = quietButton("");
+            const copy = quietButton("Copy");
+            function paintSecret() {
+              const shown = revealedFacts.has(secretKey);
+              value.textContent = shown ? fact.value : "••••••••";
+              value.classList.toggle("secret-mask", !shown);
+              reveal.textContent = shown ? "Hide" : "Show";
+              reveal.setAttribute("aria-pressed", shown ? "true" : "false");
+              reveal.setAttribute("aria-label", (shown ? "Hide " : "Show ") + fact.label);
+            }
+            reveal.addEventListener("click", function () {
+              if (revealedFacts.has(secretKey)) revealedFacts.delete(secretKey);
+              else revealedFacts.add(secretKey);
+              paintSecret();
+            });
+            copy.setAttribute("aria-label", "Copy " + fact.label);
+            copy.addEventListener("click", function () { copyValue(fact.value, true); });
+            paintSecret();
+            actions.appendChild(reveal);
+            actions.appendChild(copy);
+            dd.appendChild(value);
+            dd.appendChild(actions);
+          } else {
+            const href = httpUrl(fact.value);
+            if (href) {
+              const link = document.createElement("a");
+              link.className = "published-link";
+              link.href = href;
+              link.target = "_blank";
+              link.rel = "noopener noreferrer";
+              link.textContent = fact.value;
+              const copy = quietButton("Copy");
+              copy.setAttribute("aria-label", "Copy " + fact.label);
+              copy.addEventListener("click", function () { copyValue(fact.value, false); });
+              dd.appendChild(link);
+              dd.appendChild(copy);
+            } else {
+              const button = document.createElement("button");
+              button.className = "btn btn-quiet fact-copy";
+              button.type = "button";
+              button.textContent = fact.value;
+              button.setAttribute("data-copy", fact.value);
+              dd.appendChild(button);
+            }
+          }
           row.appendChild(dt);
           row.appendChild(dd);
           list.appendChild(row);
+        });
+        Array.from(revealedFacts).forEach(function (key) {
+          if (key.startsWith(targetId + "\u0000") && !activeSecretKeys.has(key)) revealedFacts.delete(key);
         });
         list.classList.toggle("is-empty", !list.children.length);
       }

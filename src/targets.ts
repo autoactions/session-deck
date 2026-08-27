@@ -6,6 +6,8 @@ import { decryptSensitiveFacts } from "./sensitive-facts.ts";
 
 export type TargetState = "off" | "starting" | "on" | "stopping" | "failed";
 
+export type TargetFact = LocatorFact & { sensitive: boolean };
+
 export const SESSION_DEADLINE_MINUTES = 330;
 
 export type TargetView = {
@@ -16,14 +18,14 @@ export type TargetView = {
   runUrl: string | null;
   startedAt: string | null;
   openedBy: string | null;
-  facts: LocatorFact[];
+  facts: TargetFact[];
   onCaption: string;
   inputs: InputSpec[];
 };
 
 export type Observed = {
   ready: boolean;
-  facts: LocatorFact[];
+  facts: TargetFact[];
 };
 
 const READY: Observed = { ready: true, facts: [] };
@@ -93,7 +95,7 @@ async function observedOutput(
   run: WorkflowRun | null,
   github: GitHubActions,
   sessionPassword: string,
-): Promise<{ facts: LocatorFact[]; hasLocators: boolean; sensitiveValid: boolean }> {
+): Promise<{ facts: TargetFact[]; hasLocators: boolean; sensitiveValid: boolean }> {
   if (!run || isPending(run) || run.status === "completed") {
     return { facts: [], hasLocators: false, sensitiveValid: true };
   }
@@ -102,7 +104,10 @@ async function observedOutput(
     const locators = parseLocatorBlock(output);
     const sensitive = await decryptSensitiveFacts(output, sessionPassword);
     return {
-      facts: [...locators, ...(sensitive.valid ? sensitive.facts : [])],
+      facts: [
+        ...locators.map((fact) => ({ ...fact, sensitive: false })),
+        ...(sensitive.valid ? sensitive.facts.map((fact) => ({ ...fact, sensitive: true })) : []),
+      ],
       hasLocators: locators.length > 0,
       sensitiveValid: sensitive.valid,
     };
