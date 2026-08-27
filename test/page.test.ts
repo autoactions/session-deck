@@ -64,6 +64,8 @@ describe("management page", () => {
     expect(html).toContain('link.rel = "noopener noreferrer"');
     expect(html).toContain('quietButton("Copy")');
     expect(html).toContain('sensitive ? "Copy failed" : value');
+    expect(html).toContain('targetId + "\\u0000"');
+    expect(html).not.toContain("\u0000");
     expect(html).not.toContain("data-locator-fact");
     expect(html).not.toContain("setFacts");
     expect(html).not.toContain("data-address-fact");

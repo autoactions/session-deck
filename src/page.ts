@@ -1098,7 +1098,7 @@ export function renderPage(repos: string[] = []): string {
           const dd = document.createElement("dd");
           dd.className = "published-value";
           if (fact.sensitive === true) {
-            const secretKey = targetId + "\u0000" + fact.label + "\u0000" + index;
+            const secretKey = targetId + "\\u0000" + fact.label + "\\u0000" + index;
             activeSecretKeys.add(secretKey);
             const value = document.createElement("span");
             value.className = "secret-mask";
@@ -1154,7 +1154,7 @@ export function renderPage(repos: string[] = []): string {
           list.appendChild(row);
         });
         Array.from(revealedFacts).forEach(function (key) {
-          if (key.startsWith(targetId + "\u0000") && !activeSecretKeys.has(key)) revealedFacts.delete(key);
+          if (key.startsWith(targetId + "\\u0000") && !activeSecretKeys.has(key)) revealedFacts.delete(key);
         });
         list.classList.toggle("is-empty", !list.children.length);
       }
