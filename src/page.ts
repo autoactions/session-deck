@@ -299,6 +299,7 @@ export function renderPage(repos: string[] = []): string {
       background-repeat: no-repeat;
       appearance: none;
       cursor: pointer;
+      text-transform: uppercase;
     }
     .target-scroll {
       max-width: 100%;
@@ -844,7 +845,7 @@ export function renderPage(repos: string[] = []): string {
     function projectLabel(repo) {
       const name = repo.split("/").pop() || repo;
       const clash = repos().filter(function (item) { return (item.split("/").pop() || item) === name; }).length > 1;
-      return clash ? repo : name;
+      return (clash ? repo : name).toUpperCase();
     }
 
     function renderProjects() {

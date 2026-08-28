@@ -43,6 +43,8 @@ describe("management page", () => {
     expect(html).toContain('role="radiogroup" aria-label="Target"');
     expect(html).toContain("function targetsForProject");
     expect(html).toContain("function setProject");
+    expect(html).toContain(".toUpperCase()");
+    expect(html).toContain("text-transform: uppercase;");
     expect(html).toContain("available[0].id");
     expect(html).toContain("session-deck-project-targets");
     expect(html).not.toContain("const picks = CATALOG.map");

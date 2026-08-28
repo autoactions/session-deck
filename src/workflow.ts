@@ -127,5 +127,9 @@ function workflowLabel(name: unknown, stem: string): string {
 }
 
 function titleize(value: string): string {
-  return value.slice(0, 1).toUpperCase() + value.slice(1);
+  if (!value) return "";
+  return value
+    .split(/([-_ ])/)
+    .map((part) => (part === "-" || part === "_" || part === " " ? part : part.slice(0, 1).toUpperCase() + part.slice(1)))
+    .join("");
 }

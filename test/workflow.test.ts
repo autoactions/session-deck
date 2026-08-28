@@ -68,6 +68,22 @@ describe("targetsFromWorkflow", () => {
     });
   });
 
+  it("titleizes hyphenated and underscored options and stems", () => {
+    const custom = `name: tsvc
+run-name: service:\${{ inputs.service }}
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        type: choice
+        options:
+          - code-server
+          - test_service
+`;
+    const targets = targetsFromWorkflow("autoactions/tsvc", ".github/workflows/tsvc.yml", custom);
+    expect(targets.map((target) => target.label)).toEqual(["Code-Server", "Test_Service"]);
+  });
+
   it("ignores workflows without workflow_dispatch", () => {
     expect(targetsFromWorkflow("autoactions/tsvc", ".github/workflows/ci.yml", ci)).toEqual([]);
   });
