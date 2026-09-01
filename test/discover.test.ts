@@ -53,4 +53,24 @@ describe("discoverTargets", () => {
       "tsvc/openlist",
     ]);
   });
+
+  it("reuses the catalog within the discovery TTL", async () => {
+    clearDiscoveryCache();
+    let lists = 0;
+    const listed = await discoverTargets(["autoactions/tsrv"], (repo) => {
+      const client = access(repo, { ".github/workflows/linux.yml": linux });
+      return {
+        ...client,
+        async listWorkflows() {
+          lists += 1;
+          return client.listWorkflows();
+        },
+      };
+    });
+    const cached = await discoverTargets(["autoactions/tsrv"], () => {
+      throw new Error("discovery cache missed");
+    });
+    expect(lists).toBe(1);
+    expect(cached.map((target) => target.id)).toEqual(listed.map((target) => target.id));
+  });
 });

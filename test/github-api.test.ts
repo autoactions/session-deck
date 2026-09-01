@@ -360,4 +360,31 @@ describe("GitHub Actions adapter", () => {
       "https://api.github.com/repos/autoactions/tsrv/check-runs/9",
     ]);
   });
+
+  it("does not download job logs when the Locator Artifact is still missing", async () => {
+    const { github, calls } = githubWith((call) => {
+      if (call.url.includes("/actions/runs/88/artifacts?")) {
+        return Response.json({ artifacts: [] });
+      }
+      if (call.url.endsWith("/jobs")) {
+        return Response.json({
+          jobs: [{ id: 7, check_run_url: "https://api.github.com/repos/autoactions/tsrv/check-runs/9" }],
+        });
+      }
+      if (call.url.includes("/check-runs/9")) {
+        return Response.json({ output: { summary: "still starting" } });
+      }
+      if (call.url.includes("/logs")) {
+        return new Response("job logs must not be read", { status: 500 });
+      }
+      return new Response("unexpected request", { status: 500 });
+    });
+
+    await expect(github.observerOutput?.("tsrv/linux", 88)).resolves.toBe("still starting");
+    expect(calls.map((call) => call.url)).toEqual([
+      "https://api.github.com/repos/autoactions/tsrv/actions/runs/88/artifacts?name=session-deck-locators&per_page=100",
+      "https://api.github.com/repos/autoactions/tsrv/actions/runs/88/jobs",
+      "https://api.github.com/repos/autoactions/tsrv/check-runs/9",
+    ]);
+  });
 });

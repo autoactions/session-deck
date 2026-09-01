@@ -84,6 +84,11 @@ describe("management page", () => {
     expect(html).not.toMatch(/[\u4e00-\u9fff]/);
     expect(html).not.toContain("#38bdf8");
     expect(html).not.toContain("Geist Mono");
+    expect(html).toContain("let refreshInFlight = false");
+    expect(html).toContain("if (!token() || refreshInFlight) return");
+    expect(html).toContain('throw new Error("control plane busy")');
+    expect(html).toContain("pollDelay === 5000 ? 15000 : pollDelay * 2, 30000");
+    expect(html).toContain("Worker exceeded resource limits");
   });
 
   it("serves the concentric mark", async () => {

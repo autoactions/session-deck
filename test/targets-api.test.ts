@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { clearObserverCache, OBSERVER_WAITING_TTL_MS } from "../src/targets.ts";
 import { createWorker } from "../src/worker.ts";
 import { FakeGitHub } from "./fake-github.ts";
 import { DEBUG_CATALOG, SERVICE_CATALOG, linuxTarget, windowsTarget } from "./fixtures.ts";
@@ -46,6 +47,10 @@ function api(
   }
   return fetchImpl(new Request(`https://control.test${path}`, { ...init, headers }));
 }
+
+beforeEach(() => {
+  clearObserverCache();
+});
 
 describe("target API auth", () => {
   const routes = [
@@ -312,6 +317,36 @@ describe("GitHub run observer", () => {
     });
   });
 
+  it("reuses Observer output for the same live run", async () => {
+    const run = {
+      id: 42,
+      status: "in_progress",
+      conclusion: null,
+      htmlUrl: "https://github.com/autoactions/tsrv/actions/runs/42",
+      startedAt: "2026-08-18T10:00:00Z",
+      openedBy: "octo",
+    };
+    let calls = 0;
+    const github = {
+      latestRun: async () => run,
+      dispatch: async () => {},
+      cancel: async () => {},
+      observerOutput: async () => {
+        calls += 1;
+        return "## Locators\n- SSH: runner@100.64.0.10\n";
+      },
+    };
+    const fetchImpl = createWorker({ sessionPassword, github, catalog: [linuxTarget] });
+    const first = await (await api(fetchImpl, "/api/targets/tsrv/linux")).json();
+    const second = (await (await api(fetchImpl, "/api/targets")).json()) as { targets: unknown[] };
+    expect(first).toMatchObject({
+      state: "on",
+      facts: [{ label: "SSH", value: "runner@100.64.0.10", sensitive: false }],
+    });
+    expect(second.targets[0]).toMatchObject(first as object);
+    expect(calls).toBe(1);
+  });
+
   it("shows Locator Block facts when the debug session publishes them", async () => {
     const github = new FakeGitHub();
     github.runs["tsrv/linux"] = {
@@ -385,25 +420,31 @@ describe("GitHub run observer", () => {
   });
 
   it("recovers facts on the next refresh after the Locator Artifact appears", async () => {
-    const github = new FakeGitHub();
-    github.runs["tsrv/linux"] = {
-      id: 45,
-      status: "in_progress",
-      conclusion: null,
-      htmlUrl: "https://github.com/autoactions/tsrv/actions/runs/45",
-      startedAt: "2026-08-18T10:00:00Z",
-      openedBy: "octo",
-    };
-    const { fetch } = worker(github);
-    const before = await api(fetch, "/api/targets/tsrv/linux");
-    expect(await before.json()).toMatchObject({ state: "on", facts: [] });
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const github = new FakeGitHub();
+      github.runs["tsrv/linux"] = {
+        id: 45,
+        status: "in_progress",
+        conclusion: null,
+        htmlUrl: "https://github.com/autoactions/tsrv/actions/runs/45",
+        startedAt: "2026-08-18T10:00:00Z",
+        openedBy: "octo",
+      };
+      const { fetch } = worker(github);
+      const before = await api(fetch, "/api/targets/tsrv/linux");
+      expect(await before.json()).toMatchObject({ state: "on", facts: [] });
 
-    github.outputs[45] = "## Locators\n- SSH: runner@100.64.0.10\n";
-    const after = await api(fetch, "/api/targets/tsrv/linux");
-    expect(await after.json()).toMatchObject({
-      state: "on",
-      facts: [{ label: "SSH", value: "runner@100.64.0.10" }],
-    });
+      github.outputs[45] = "## Locators\n- SSH: runner@100.64.0.10\n";
+      vi.advanceTimersByTime(OBSERVER_WAITING_TTL_MS);
+      const after = await api(fetch, "/api/targets/tsrv/linux");
+      expect(await after.json()).toMatchObject({
+        state: "on",
+        facts: [{ label: "SSH", value: "runner@100.64.0.10" }],
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("stays starting while the GitHub run is queued", async () => {
@@ -505,6 +546,7 @@ describe("temporary service targets", () => {
     expect(JSON.stringify(invalidBody)).not.toContain(encrypted);
 
     github.outputs[16] = `## Sensitive Facts\n- Motrix Operator Token: ${encrypted}\n`;
+    clearObserverCache();
     const missingLocator = worker(github, SERVICE_CATALOG, "shared-session-password");
     expect(await (await api(missingLocator.fetch, "/api/targets/motrix")).json())
       .toMatchObject({ state: "starting", facts: [] });

@@ -30,6 +30,18 @@ export type Observed = {
 
 const READY: Observed = { ready: true, facts: [] };
 
+export const OBSERVER_READY_TTL_MS = 30_000;
+export const OBSERVER_WAITING_TTL_MS = 2_500;
+const OBSERVER_CONCURRENCY = 2;
+
+type Observation = { facts: TargetFact[]; hasLocators: boolean; sensitiveValid: boolean };
+
+const observationCache = new Map<string, { at: number; ttl: number; value: Observation }>();
+
+export function clearObserverCache(): void {
+  observationCache.clear();
+}
+
 export function stateFromRun(run: WorkflowRun | null, ready = true): TargetState {
   if (!run) return "off";
   if (run.status === "queued" || run.status === "waiting" || run.status === "requested" || run.status === "pending") {
@@ -90,20 +102,29 @@ function isPending(run: WorkflowRun): boolean {
   return run.status === "queued" || run.status === "waiting" || run.status === "requested" || run.status === "pending";
 }
 
+function observationKey(targetId: string, runId: number, sessionPassword: string): string {
+  return `${targetId}:${runId}:${sessionPassword}`;
+}
+
 async function observedOutput(
   target: Target,
   run: WorkflowRun | null,
   github: GitHubActions,
   sessionPassword: string,
-): Promise<{ facts: TargetFact[]; hasLocators: boolean; sensitiveValid: boolean }> {
+): Promise<Observation> {
   if (!run || isPending(run) || run.status === "completed") {
     return { facts: [], hasLocators: false, sensitiveValid: true };
   }
+  const key = observationKey(target.id, run.id, sessionPassword);
+  const hit = observationCache.get(key);
+  if (hit && Date.now() - hit.at < hit.ttl) return hit.value;
+
+  let value: Observation;
   try {
     const output = (await github.observerOutput?.(target.id, run.id)) ?? "";
     const locators = parseLocatorBlock(output);
     const sensitive = await decryptSensitiveFacts(output, sessionPassword);
-    return {
+    value = {
       facts: [
         ...locators.map((fact) => ({ ...fact, sensitive: false })),
         ...(sensitive.valid ? sensitive.facts.map((fact) => ({ ...fact, sensitive: true })) : []),
@@ -112,8 +133,14 @@ async function observedOutput(
       sensitiveValid: sensitive.valid,
     };
   } catch {
-    return { facts: [], hasLocators: false, sensitiveValid: false };
+    value = { facts: [], hasLocators: false, sensitiveValid: false };
   }
+  observationCache.set(key, {
+    at: Date.now(),
+    ttl: value.hasLocators ? OBSERVER_READY_TTL_MS : OBSERVER_WAITING_TTL_MS,
+    value,
+  });
+  return value;
 }
 
 export async function readyStatus(
@@ -138,10 +165,26 @@ export async function listTargets(
   intents?: TargetIntents,
   sessionPassword = "",
 ): Promise<TargetView[]> {
-  return Promise.all(
-    catalog.map(async (target) => {
-      const run = await github.latestRun(target.id);
-      return viewTarget(target, run, intents, await readyStatus(target, run, github, sessionPassword));
-    }),
+  const runs = await Promise.all(catalog.map((target) => github.latestRun(target.id)));
+  const pairs = catalog.map((target, index) => ({ target, run: runs[index] ?? null }));
+  return mapLimit(pairs, OBSERVER_CONCURRENCY, async ({ target, run }) =>
+    viewTarget(target, run, intents, await readyStatus(target, run, github, sessionPassword)),
   );
+}
+
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  async function worker() {
+    for (;;) {
+      const index = next;
+      next += 1;
+      if (index >= items.length) return;
+      results[index] = await fn(items[index]!);
+    }
+  }
+  const workers = Math.min(Math.max(limit, 1), items.length);
+  if (workers === 0) return [];
+  await Promise.all(Array.from({ length: workers }, () => worker()));
+  return results;
 }

@@ -1,0 +1,3 @@
+# The 5s dashboard poll must not re-read GitHub logs or re-decrypt Sensitive Facts
+
+`GET /api/targets` is polled every 5 seconds. Re-downloading job logs, unzipping the Locator Artifact, and running 100,000-iteration PBKDF2 on every poll exceeded Worker CPU and isolate memory (Cloudflare 1102). This plane still observes GitHub (ADR-0005, ADR-0010): it caches the Observer result per Target run in isolate memory (30s after Locators appear, 2.5s while waiting) and decrypts only on a cache miss. Check-run summaries remain the fallback for runs that have not uploaded `session-deck-locators`. Full job logs are not read; they are unbounded and are not the Locator transport.

@@ -2,7 +2,7 @@ import type { Target } from "./catalog.ts";
 import type { GitHubRepoAccess } from "./github.ts";
 import { targetsFromWorkflow } from "./workflow.ts";
 
-const TTL_MS = 30_000;
+const TTL_MS = 5 * 60_000;
 
 const cache = new Map<string, { at: number; targets: Target[] }>();
 

@@ -212,10 +212,6 @@ export function createGitHubActions(config: GitHubActionsConfig): GitHubRepoClie
         }
       }
       if (hasLocatorBlock(chunks.join("\n"))) return chunks.join("\n");
-      const logs = await authed(`${base}/actions/jobs/${job.id}/logs`, {
-        headers: { Accept: "*/*" },
-      });
-      if (logs.ok) chunks.push(await logs.text());
     }
     const text = chunks.join("\n").trim();
     return text || null;

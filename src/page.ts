@@ -1004,8 +1004,16 @@ export function renderPage(repos: string[] = []): string {
         init.body = JSON.stringify(body);
       }
       const response = await fetch(path, init);
-      const data = await response.json().catch(function () { return {}; });
-      if (!response.ok) throw new Error(data.error || ("HTTP " + response.status));
+      const raw = await response.text();
+      var data = {};
+      try { data = raw ? JSON.parse(raw) : {}; }
+      catch (e) { data = {}; }
+      if (!response.ok) {
+        if (response.status === 503 || raw.indexOf("Worker exceeded resource limits") !== -1) {
+          throw new Error("control plane busy");
+        }
+        throw new Error(data.error || ("HTTP " + response.status));
+      }
       return data;
     }
 
@@ -1211,11 +1219,29 @@ export function renderPage(repos: string[] = []): string {
       renderJournal();
     }
 
+    let refreshInFlight = false;
+    let pollDelay = 5000;
+    let nextPollAt = 0;
+
     async function refresh() {
-      if (!token()) return;
-      const body = await api("/api/targets");
-      mount(body.targets);
-      body.targets.forEach(paint);
+      if (!token() || refreshInFlight) return;
+      if (Date.now() < nextPollAt) return;
+      refreshInFlight = true;
+      try {
+        const body = await api("/api/targets");
+        mount(body.targets);
+        body.targets.forEach(paint);
+        pollDelay = 5000;
+        nextPollAt = 0;
+      } catch (err) {
+        if (err.message === "control plane busy") {
+          pollDelay = Math.min(pollDelay === 5000 ? 15000 : pollDelay * 2, 30000);
+          nextPollAt = Date.now() + pollDelay;
+        }
+        throw err;
+      } finally {
+        refreshInFlight = false;
+      }
     }
 
     async function enter() {
